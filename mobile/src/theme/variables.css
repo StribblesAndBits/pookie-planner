@@ -1,2 +1,24 @@
 /* For information on how to create your own theme, please refer to:
 http://ionicframework.com/docs/theming/ */
+
+/* Remove yellow autofill background across all browsers */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px white inset !important;
+  box-shadow: 0 0 0 30px white inset !important;
+  padding: 12px !important;
+}
+
+/* Prevent text color change on autofill */
+input:-webkit-autofill {
+  -webkit-text-fill-color: #333 !important;
+}
+
+/* Add padding to all inputs */
+input {
+  padding: 12px !important;
+  margin: 8px !important;
+}
+
