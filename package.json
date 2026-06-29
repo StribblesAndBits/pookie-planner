@@ -1,0 +1,7 @@
+{
+  "name": "pookie-planner",
+  "scripts": {
+    "mobile": "cd mobile && ionic serve",
+    "api": "php artisan serve"
+  }
+}
