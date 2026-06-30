@@ -11,6 +11,10 @@ export default defineConfig({
     vue(),
     legacy()
   ],
+  define: {
+    __BUNDLED_DEV__: false,
+    __SERVER_FORWARD_CONSOLE__: false
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

@@ -4,6 +4,7 @@ import DashboardPage from '../views/DashboardPage.vue';
 import LoginPage from '../views/LoginPage.vue';
 import RegisterPage from '../views/RegisterPage.vue';
 import ForgotPasswordPage from '../views/ForgotPasswordPage.vue';
+import ProfilePage from '../views/ProfilePage.vue';
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -29,6 +30,11 @@ const routes: Array<RouteRecordRaw> = [
     path: '/dashboard',
     name: 'Dashboard',
     component: DashboardPage
+  },
+  {
+    path: '/profile',
+    name: 'Profile',
+    component: ProfilePage
   }
 ]
 

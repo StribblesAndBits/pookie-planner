@@ -6,6 +6,7 @@ export interface User {
   first_name: string;
   last_name: string;
   email: string;
+  color_preference?: string;
   email_verified_at: string | null;
   created_at: string;
   updated_at: string;

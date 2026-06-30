@@ -1,24 +1,68 @@
 /* For information on how to create your own theme, please refer to:
 http://ionicframework.com/docs/theming/ */
 
-/* Remove yellow autofill background across all browsers */
+/* Force navbar to stay consistent on all screen sizes */
+ion-header {
+  --min-height: 56px !important;
+  min-height: 56px !important;
+}
+
+ion-toolbar {
+  --min-height: 56px !important;
+  min-height: 56px !important;
+  --padding-top: 8px !important;
+  --padding-bottom: 8px !important;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+ion-title {
+  font-size: 20px !important;
+}
+
+ion-header[collapse="condense"] {
+  display: none !important;
+}
+
+/* Keep autofill enabled but replace default yellow with a soft neutral tint */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 30px white inset !important;
-  box-shadow: 0 0 0 30px white inset !important;
-  padding: 12px !important;
+   -webkit-box-shadow: 0 0 0 30px #f4f6f8 inset !important;
+   box-shadow: 0 0 0 30px #f4f6f8 inset !important;
+   -webkit-text-fill-color: #1f2937 !important;
+   transition: background-color 9999s ease-out 0s;
 }
 
-/* Prevent text color change on autofill */
-input:-webkit-autofill {
-  -webkit-text-fill-color: #333 !important;
-}
 
 /* Add padding to all inputs */
 input {
-  padding: 12px !important;
-  margin: 8px !important;
+   padding: 12px !important;
+   margin: 8px !important;
+}
+
+@media (max-width: 768px) {
+  ion-header {
+    --min-height: 56px !important;
+    min-height: 56px !important;
+  }
+
+  ion-toolbar {
+    --min-height: 56px !important;
+    min-height: 56px !important;
+    --padding-top: 8px !important;
+    --padding-bottom: 8px !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+
+  ion-title {
+    font-size: 20px !important;
+  }
+
+  ion-header[collapse="condense"] {
+    display: none !important;
+  }
 }
 

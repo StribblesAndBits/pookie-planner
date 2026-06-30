@@ -2,39 +2,58 @@
   <ion-page>
     <Navbar />
 
-    <ion-content :fullscreen="true">
-      <ion-header collapse="condense">
-        <ion-toolbar>
-          <ion-title size="large">Dashboard</ion-title>
-        </ion-toolbar>
-      </ion-header>
-
-      <div class="container">
-        <h1>Hello World</h1>
+    <ion-content :fullscreen="true" class="ion-padding dashboard-content">
+      <div class="dashboard-container">
+        <CalendarCard />
       </div>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar } from '@ionic/vue';
+import { IonContent, IonPage } from '@ionic/vue';
 import Navbar from '@/components/Navbar.vue';
+import CalendarCard from '@/components/CalendarCard.vue';
 </script>
 
 <style scoped>
-.container {
-  text-align: center;
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
+.dashboard-container {
+   display: flex;
+   justify-content: center;
+   align-items: flex-start;
+   min-height: calc(100vh - 200px);
+   margin-top: 15px;
+   padding: 16px;
 }
 
-h1 {
-  font-size: 28px;
-  font-weight: 700;
-  margin: 0;
+@media (max-width: 768px) {
+   .dashboard-container {
+     padding: 0;
+   }
+
+   :deep(.v-card) {
+     width: 100vw;
+     max-width: 100vw;
+     border-radius: 8px;
+   }
+
+   :deep(.dashboard-content) {
+     --padding-start: 0px;
+     --padding-end: 0px;
+     --padding-top: 0px;
+     --padding-bottom: 0px;
+   }
+}
+
+:deep(.v-card) {
+   border-radius: 16px;
+   width: 100%;
+   max-width: 900px;
+   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+:deep(.v-app-bar) {
+   position: static;
 }
 </style>
 
