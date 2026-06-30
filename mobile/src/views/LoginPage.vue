@@ -3,7 +3,9 @@
     <ion-content :fullscreen="true" class="ion-padding">
       <div class="auth-container">
         <div class="auth-header">
-          <h1 class="app-title">Pookie Planner</h1>
+          <router-link to="/login" class="logo-link">
+            <img src="/images/pp-logo-white.png" alt="Pookie Planner" class="app-logo" />
+          </router-link>
           <p class="app-subtitle">Welcome back</p>
         </div>
 
@@ -112,6 +114,7 @@ async function handleLogin() {
   justify-content: center;
   min-height: 100%;
   padding: 24px 8px;
+  background-color: var(--color-background);
 }
 
 .auth-header {
@@ -119,15 +122,27 @@ async function handleLogin() {
   margin-bottom: 36px;
 }
 
-.app-title {
-  font-size: 32px;
-  font-weight: 700;
-  margin: 0 0 6px;
+.logo-link {
+  display: inline-block;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  text-decoration: none;
+}
+
+.logo-link:hover {
+  transform: scale(1.05);
+}
+
+.app-logo {
+  height: 100px;
+  width: 180px;
+  object-fit: contain;
+  margin: 0 auto 12px;
 }
 
 .app-subtitle {
   font-size: 16px;
-  color: var(--ion-color-medium);
+  color: var(--color-text);
   margin: 0;
 }
 
@@ -137,7 +152,7 @@ async function handleLogin() {
 }
 
 .input-item {
-  --background: var(--ion-color-light);
+  --background: var(--color-surface-light);
   --border-radius: 12px;
   --padding-start: 16px;
   margin-bottom: 12px;
@@ -152,9 +167,14 @@ async function handleLogin() {
 
 .forgot-link a,
 .switch-auth a {
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
   text-decoration: none;
   font-weight: 500;
+}
+
+.forgot-link a:hover,
+.switch-auth a:hover {
+  color: var(--color-text);
 }
 
 .auth-btn {
@@ -163,12 +183,14 @@ async function handleLogin() {
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 24px;
+  background-color: var(--color-primary) !important;
+  color: var(--color-text) !important;
 }
 
 .switch-auth {
   text-align: center;
   font-size: 14px;
-  color: var(--ion-color-medium);
+  color: var(--color-text);
 }
 </style>
 

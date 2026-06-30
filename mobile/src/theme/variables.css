@@ -1,10 +1,65 @@
 /* For information on how to create your own theme, please refer to:
 http://ionicframework.com/docs/theming/ */
 
-/* Force navbar to stay consistent on all screen sizes */
+/* ====== CUSTOM THEME COLORS ====== */
+:root {
+  --color-primary: #f2cfcf;
+  --color-secondary: #e5cece;
+  --color-text: #7c7575;
+  --color-background: #ccbdbd;
+  --color-surface: #ffffff;
+  --color-surface-light: #f5f5f5;
+}
+
+/* ====== IONIC COLOR VARIABLES ====== */
+:root {
+  --ion-color-primary: #f2cfcf;
+  --ion-color-primary-rgb: 242, 207, 207;
+  --ion-color-primary-contrast: #7c7575;
+  --ion-color-primary-contrast-rgb: 124, 117, 117;
+  --ion-color-primary-shade: #e5b8b8;
+  --ion-color-primary-tint: #f4d7d7;
+
+  --ion-color-secondary: #e5cece;
+  --ion-color-secondary-rgb: 229, 206, 206;
+  --ion-color-secondary-contrast: #7c7575;
+  --ion-color-secondary-contrast-rgb: 124, 117, 117;
+  --ion-color-secondary-shade: #cbb6b6;
+  --ion-color-secondary-tint: #e8d5d5;
+
+  --ion-color-medium: #888888;
+  --ion-color-light: #ccbdbd;
+  --ion-color-light-shade: #b8a8a8;
+  --ion-color-dark: #7c7575;
+
+  /* Background and text */
+  --ion-background-color: #ccbdbd;
+  --ion-background-color-rgb: 204, 189, 189;
+  --ion-text-color: #7c7575;
+  --ion-text-color-rgb: 124, 117, 117;
+
+  /* Item backgrounds */
+  --ion-item-background: #ffffff;
+  --ion-item-background-activated: #f5f5f5;
+}
+
+/* ====== GLOBAL ELEMENT STYLING ====== */
+* {
+  --ion-text-color: #7c7575;
+}
+
+body {
+  background-color: #ccbdbd;
+  color: #7c7575;
+}
+
+/* ====== NAVBAR/HEADER ====== */
 ion-header {
   --min-height: 56px !important;
   min-height: 56px !important;
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #e5cece !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
 }
 
 ion-toolbar {
@@ -14,34 +69,120 @@ ion-toolbar {
   --padding-bottom: 8px !important;
   padding-top: 8px !important;
   padding-bottom: 8px !important;
+  --background: #ffffff !important;
+  background-color: #ffffff !important;
 }
 
 ion-title {
   font-size: 20px !important;
+  color: #7c7575 !important;
 }
 
 ion-header[collapse="condense"] {
   display: none !important;
 }
 
-/* Keep autofill enabled but replace default yellow with a soft neutral tint */
+/* ====== BUTTONS ====== */
+ion-button {
+  --background: #f2cfcf;
+  --background-activated: #e5b8b8;
+  --background-focused: #e5b8b8;
+  --background-hover: #e5b8b8;
+  color: #7c7575 !important;
+  font-weight: 600;
+}
+
+ion-button.secondary {
+  --background: #e5cece;
+  --background-activated: #d4b7b7;
+}
+
+ion-button[color="danger"] {
+  --background: #d32f2f;
+  color: #ffffff !important;
+}
+
+/* ====== INPUTS AND FORMS ====== */
+ion-input {
+  --color: #7c7575;
+  --placeholder-color: #a99999;
+}
+
+ion-input input {
+  color: #7c7575 !important;
+  background-color: #ffffff !important;
+}
+
+ion-input input::placeholder {
+  color: #a99999 !important;
+}
+
+ion-textarea {
+  --color: #7c7575;
+  --placeholder-color: #a99999;
+  background-color: #ffffff !important;
+}
+
+ion-item {
+  --background: #ffffff;
+  --background-activated: #f5f5f5;
+  --color: #7c7575;
+  --border-color: #e5cece;
+}
+
+ion-item.item-input {
+  --background: #ffffff;
+}
+
+/* Keep autofill enabled but replace default yellow with theme colors */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
-   -webkit-box-shadow: 0 0 0 30px #f4f6f8 inset !important;
-   box-shadow: 0 0 0 30px #f4f6f8 inset !important;
-   -webkit-text-fill-color: #1f2937 !important;
-   transition: background-color 9999s ease-out 0s;
+  -webkit-box-shadow: 0 0 0 30px #f5f5f5 inset !important;
+  box-shadow: 0 0 0 30px #f5f5f5 inset !important;
+  -webkit-text-fill-color: #7c7575 !important;
+  transition: background-color 9999s ease-out 0s;
 }
-
 
 /* Add padding to all inputs */
 input {
-   padding: 12px !important;
-   margin: 8px !important;
+  padding: 12px !important;
+  margin: 8px !important;
+  color: #7c7575 !important;
 }
 
+/* ====== TEXT ====== */
+p, span, div, a, h1, h2, h3, h4, h5, h6 {
+  color: #7c7575;
+}
+
+a {
+  color: #f2cfcf;
+  font-weight: 500;
+}
+
+a:hover {
+  color: #e5b8b8;
+}
+
+/* ====== IONIC CONTENT ====== */
+ion-content {
+  --background: #ccbdbd;
+  --ion-text-color: #7c7575;
+}
+
+/* ====== IONIC LISTS ====== */
+ion-list {
+  background: transparent;
+}
+
+/* ====== IONIC ICONS ====== */
+ion-icon {
+  color: #7c7575;
+}
+
+/* ====== MEDIA QUERIES FOR SMALLER SCREENS ====== */
 @media (max-width: 768px) {
   ion-header {
     --min-height: 56px !important;

@@ -6,7 +6,7 @@ export interface User {
   first_name: string;
   last_name: string;
   email: string;
-  color_preference?: string;
+  color_preference?: string | null;
   email_verified_at: string | null;
   created_at: string;
   updated_at: string;
@@ -36,6 +36,7 @@ export function useAuth() {
     email: string;
     password: string;
     password_confirmation: string;
+    color_preference?: string;
   }) {
     const { data } = await api.post('/register', payload);
     setSession(data.token, data.user);

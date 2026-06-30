@@ -14,7 +14,6 @@ return new class extends Migration
             $table->string('title');
             $table->date('start');
             $table->date('end');
-            $table->string('color', 50)->default('blue');
             $table->text('description')->nullable();
             $table->timestamps();
 

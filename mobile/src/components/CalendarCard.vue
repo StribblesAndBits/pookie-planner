@@ -33,7 +33,7 @@
               v-for="(event, eventIndex) in getVisibleEvents(cell.date)"
               :key="eventIndex"
               class="event-item"
-              :style="getEventStyle(event.color)"
+              :style="getEventStyle()"
             >
               {{ event.title }}
             </div>
@@ -84,7 +84,7 @@
           </v-card-text>
           <v-card-actions class="day-view-actions">
             <v-spacer />
-            <v-btn color="primary" variant="text" @click="showDayView = false">Close</v-btn>
+            <v-btn color="primary" class="action-btn" size="x-small" density="comfortable" rounded="lg" @click="showDayView = false">Close</v-btn>
           </v-card-actions>
         </v-card>
       </v-dialog>
@@ -97,13 +97,13 @@
             <p><strong>Date:</strong> {{ formatDisplayDate(selectedEvent.start) }}</p>
             <p><strong>Time:</strong> {{ formatEventTimeRange(selectedEvent) }}</p>
             <p v-if="selectedEvent.description"><strong>Description:</strong> {{ selectedEvent.description }}</p>
-            <div class="event-color-preview" :style="{ backgroundColor: getColorValue(selectedEvent.color) }" />
+            <div class="event-color-preview" :style="{ backgroundColor: getColorValue(getCurrentUserColor()) }" />
           </v-card-text>
           <v-card-actions>
             <v-btn v-if="canManageSelectedEvent" color="primary" variant="text" @click="openEditEventDialog">Edit</v-btn>
             <v-btn v-if="canManageSelectedEvent" color="error" variant="text" @click="deleteSelectedEvent">Delete</v-btn>
             <v-spacer />
-            <v-btn color="primary" variant="text" @click="closeEventPopover">Close</v-btn>
+            <v-btn color="primary" class="action-btn" size="x-small" density="comfortable" rounded="lg" @click="closeEventPopover">Close</v-btn>
           </v-card-actions>
         </v-card>
        </v-dialog>
@@ -119,15 +119,14 @@
               <v-text-field v-model="eventForm.start_time" label="Start time" type="time" density="comfortable" />
               <v-text-field v-model="eventForm.end_time" label="End time" type="time" density="comfortable" />
             </div>
-            <v-select v-model="eventForm.color" :items="eventColors" label="Color" density="comfortable" />
             <v-textarea v-model="eventForm.description" label="Description" rows="3" density="comfortable" />
             <p v-if="formError" class="form-error">{{ formError }}</p>
           </v-card-text>
-          <v-card-actions>
-            <v-spacer />
-            <v-btn variant="text" @click="showEventForm = false">Cancel</v-btn>
-            <v-btn color="primary" :loading="savingEvent" @click="saveEvent">Save</v-btn>
-          </v-card-actions>
+           <v-card-actions>
+             <v-spacer />
+             <v-btn color="primary" class="action-btn" size="x-small" density="comfortable" rounded="lg" @click="showEventForm = false">Cancel</v-btn>
+             <v-btn color="primary" class="action-btn" size="x-small" density="comfortable" rounded="lg" :loading="savingEvent" @click="saveEvent">Save</v-btn>
+           </v-card-actions>
         </v-card>
       </v-dialog>
      </v-card-text>
@@ -136,7 +135,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { VCard, VCardTitle, VCardText, VCardActions, VDialog, VBtn, VSpacer, VTextField, VTextarea, VSelect } from 'vuetify/components';
+import { VCard, VCardTitle, VCardText, VCardActions, VDialog, VBtn, VSpacer, VTextField, VTextarea } from 'vuetify/components';
 import { useAuth } from '@/composables/useAuth';
 import api from '@/services/api';
 
@@ -148,7 +147,6 @@ type CalendarEvent = {
   end: string;
   start_time: string;
   end_time: string;
-  color: string;
   description?: string | null;
 };
 
@@ -158,7 +156,6 @@ type EventForm = {
   end: string;
   start_time: string;
   end_time: string;
-  color: string;
   description: string;
 };
 
@@ -182,7 +179,12 @@ function formatDisplayDate(dateStr: string): string {
   return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-function getColorValue(colorName: string): string {
+function getColorValue(color: string): string {
+  // Color is already a hex value or a color name
+  if (color.startsWith('#')) {
+    return color;
+  }
+  // Legacy support for old color names
   const colors: Record<string, string> = {
     blue: '#2196f3',
     green: '#4caf50',
@@ -190,12 +192,17 @@ function getColorValue(colorName: string): string {
     yellow: '#ffc107',
     primary: '#1976d2',
   };
-  return colors[colorName] || '#1976d2';
+  return colors[color] || '#1976d2';
 }
 
-function getEventStyle(colorName: string) {
-  const bg = getColorValue(colorName);
-  const textColor = colorName === 'yellow' ? '#1f2937' : '#ffffff';
+function getCurrentUserColor(): string {
+  return user.value?.color_preference || '#D6486B';
+}
+
+function getEventStyle() {
+  const colorValue = getCurrentUserColor();
+  const bg = getColorValue(colorValue);
+  const textColor = '#ffffff';
   return {
     backgroundColor: bg,
     color: textColor,
@@ -203,9 +210,10 @@ function getEventStyle(colorName: string) {
   };
 }
 
-function getDayViewEventStyle(colorName: string) {
-  const bg = getColorValue(colorName);
-  const textColor = colorName === 'yellow' ? '#1f2937' : '#ffffff';
+function getDayViewEventStyle() {
+  const colorValue = getCurrentUserColor();
+  const bg = getColorValue(colorValue);
+  const textColor = '#ffffff';
   return { backgroundColor: bg, color: textColor, borderLeftColor: bg };
 }
 
@@ -217,7 +225,6 @@ function getDefaultEventForm(date?: string): EventForm {
     end: initialDate,
     start_time: '09:00',
     end_time: '10:00',
-    color: user.value?.color_preference || 'blue',
     description: '',
   };
 }
@@ -235,7 +242,6 @@ const displayMonth = ref(new Date(new Date().getFullYear(), new Date().getMonth(
 const todayDate = formatDateString(new Date());
 
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const eventColors = ['blue', 'green', 'pink', 'yellow', 'primary'];
 const events = ref<CalendarEvent[]>([]);
 
 const monthLabel = computed(() => displayMonth.value.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
@@ -367,7 +373,7 @@ function getTimelineEventStyle(event: CalendarEvent) {
   const durationMinutes = endMinutes - startMinutes;
   const topPct = (startMinutes / 1440) * 100;
   const heightPct = Math.max((durationMinutes / 1440) * 100, 4);
-  const baseStyle = getDayViewEventStyle(event.color) as Record<string, string>;
+  const baseStyle = getDayViewEventStyle() as Record<string, string>;
 
   return {
     ...baseStyle,
@@ -419,7 +425,6 @@ function openEditEventDialog() {
     end: selectedEvent.value.end,
     start_time: selectedEvent.value.start_time,
     end_time: selectedEvent.value.end_time,
-    color: selectedEvent.value.color,
     description: selectedEvent.value.description || '',
   };
   showModal.value = false;
@@ -506,9 +511,11 @@ onMounted(async () => {
 
 .action-btn {
   text-transform: none;
-  border-radius: 12px;
+  border-radius: 12px !important;
   padding-inline: 10px;
   min-height: 30px;
+  background-color: var(--color-primary) !important;
+  color: var(--color-text) !important;
 }
 
 .action-btn :global(.v-btn__content) {
@@ -516,8 +523,22 @@ onMounted(async () => {
   letter-spacing: 0;
 }
 
+.action-btn :global(.v-btn__overlay),
+.action-btn :global(.v-btn__underlay) {
+  border-radius: 12px;
+}
+
 .day-title-row {
   font-size: 18px;
+}
+
+/* Input fields styling */
+:deep(.v-text-field .v-field) {
+  background-color: #ffffff !important;
+}
+
+:deep(.v-textarea .v-field) {
+  background-color: #ffffff !important;
 }
 
 .weekday-row {
@@ -673,6 +694,7 @@ onMounted(async () => {
   line-height: 1.1;
   white-space: normal;
   margin: 0;
+  color: #ffffff !important;
 }
 
 .time-row {

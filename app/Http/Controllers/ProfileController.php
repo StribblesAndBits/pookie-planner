@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class ProfileController extends Controller
 {
@@ -17,7 +19,12 @@ class ProfileController extends Controller
             'last_name'         => 'string|max:255',
             'email'             => 'string|email|max:255|unique:users,email,' . $user->id,
             'password'          => 'string|min:8|confirmed',
-            'color_preference'  => 'string|in:blue,green,pink,yellow',
+            'color_preference'  => [
+                'nullable',
+                'string',
+                Rule::in(User::COLOR_PREFERENCES),
+                Rule::unique('users', 'color_preference')->ignore($user->id),
+            ],
         ]);
 
         if ($request->filled('first_name')) {
@@ -42,12 +49,18 @@ class ProfileController extends Controller
 
         $user->save();
 
-        return response()->json($user);
+        return response()->json([
+            'user' => $user,
+            'available_colors' => User::availableColorPreferences($user->id),
+        ]);
     }
 
     public function show(Request $request): JsonResponse
     {
-        return response()->json($request->user());
+        return response()->json([
+            'user' => $request->user(),
+            'available_colors' => User::availableColorPreferences($request->user()->id),
+        ]);
     }
 }
 

@@ -41,6 +41,28 @@ import './theme/variables.css';
 const vuetify = createVuetify({
   components,
   directives,
+  theme: {
+    defaultTheme: 'light',
+    themes: {
+      light: {
+        colors: {
+          primary: '#f2cfcf',
+          secondary: '#e5cece',
+          surface: '#ccbdbd',
+          background: '#ccbdbd',
+          error: '#d32f2f',
+          warning: '#f57c00',
+          info: '#1976d2',
+          success: '#388e3c',
+          text: '#7c7575',
+          'on-primary': '#7c7575',
+          'on-secondary': '#7c7575',
+          'on-surface': '#7c7575',
+          'on-background': '#7c7575',
+        },
+      },
+    },
+  },
 })
 
 const app = createApp(App)

@@ -1,7 +1,15 @@
 <template>
   <div class="navbar-container">
     <div class="navbar-content">
-      <div class="navbar-title">Dashboard</div>
+      <!-- Logo (left) -->
+      <router-link to="/dashboard" class="logo-link">
+        <img src="/images/pp-logo.png" alt="Pookie Planner" class="navbar-logo" />
+      </router-link>
+
+      <!-- Title (center) -->
+      <div class="navbar-title">{{ pageTitle }}</div>
+
+      <!-- User menu (right) -->
       <v-spacer />
       <v-menu v-model="isOpen" :close-on-content-click="true">
         <template v-slot:activator="{ props }">
@@ -51,11 +59,18 @@ const initials = computed(() => {
    return buildInitials(user.value.first_name, user.value.last_name) || cachedInitials.value || 'U';
 });
 
+const pageTitle = computed(() => {
+   const routeName = route.name as string | undefined;
+   if (routeName === 'Dashboard') return 'Dashboard';
+   if (routeName === 'Profile') return 'Profile';
+   return 'Dashboard';
+});
+
 watch(
    () => user.value,
    (currentUser) => {
-     const next = buildInitials(currentUser?.first_name, currentUser?.last_name);
-     if (next) cachedInitials.value = next;
+      const next = buildInitials(currentUser?.first_name, currentUser?.last_name);
+      if (next) cachedInitials.value = next;
    },
    { immediate: true }
 );
@@ -86,21 +101,51 @@ async function handleLogout() {
   position: sticky;
   top: 0;
   z-index: 100;
+    height: 65px;
 }
 
 .navbar-content {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 56px;
+  height: 65px;
   padding: 0 16px;
   min-height: 56px;
+  position: relative;
+}
+
+.logo-link {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60px;
+  width: 90px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.logo-link:hover {
+  background-color: var(--color-background);
+}
+
+.navbar-logo {
+  height: 60px;
+  width: 90px;
+  object-fit: contain;
 }
 
 .navbar-title {
   font-size: 20px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--color-text);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  min-width: 100px;
+  cursor: none;
 }
 
 .initials-button {
@@ -111,17 +156,18 @@ async function handleLogout() {
   font-size: 16px;
   border-radius: 50%;
   border: none;
-  background-color: #e3f2fd;
-  color: #1976d2;
+  background-color: var(--color-primary);
+  color: var(--color-text);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background-color 0.2s;
+  flex-shrink: 0;
 }
 
 .initials-button:hover {
-  background-color: #bbdefb;
+  background-color: var(--color-secondary);
 }
 </style>
 

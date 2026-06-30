@@ -14,7 +14,6 @@ class Event extends Model
         'end',
         'start_time',
         'end_time',
-        'color',
         'description',
     ];
 

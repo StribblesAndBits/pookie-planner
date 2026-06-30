@@ -65,10 +65,15 @@
                 <button
                   v-for="color in colors"
                   :key="color"
-                  :class="['color-btn', color, { active: form.color_preference === color }]"
+                  type="button"
+                  :class="['color-btn', { active: form.color_preference === color, taken: isColorTaken(color) }]"
+                  :style="{ backgroundColor: color }"
+                  :disabled="isColorTaken(color) && form.color_preference !== color"
                   @click="form.color_preference = color"
-                  :title="color"
-                />
+                  :title="isColorTaken(color) && form.color_preference !== color ? `${color} is taken` : color"
+                >
+                  <v-icon v-if="isColorTaken(color) && form.color_preference !== color" class="taken-icon">mdi-prohibition</v-icon>
+                </button>
               </div>
 
               <v-btn
@@ -92,9 +97,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { IonPage, IonContent, IonHeader, IonToolbar, IonTitle, IonSpinner, toastController } from '@ionic/vue';
-import { VCard, VCardTitle, VCardText, VTextField, VDivider, VBtn } from 'vuetify/components';
+import { VCard, VCardTitle, VCardText, VTextField, VDivider, VBtn, VIcon } from 'vuetify/components';
 import Navbar from '@/components/Navbar.vue';
 import { useAuth } from '@/composables/useAuth';
 import api from '@/services/api';
@@ -104,7 +109,8 @@ const loading = ref(false);
 const saving = ref(false);
 const message = ref('');
 const messageType = ref('');
-const colors = ['blue', 'green', 'pink', 'yellow'];
+const colors = ['#D6486B', '#6B3F38', '#5C6E4A', '#D9A441'] as const;
+const availableColors = ref<string[]>([...colors]);
 
 const form = ref({
   first_name: '',
@@ -112,19 +118,50 @@ const form = ref({
   email: '',
   password: '',
   password_confirmation: '',
-  color_preference: 'blue',
+  color_preference: '',
 });
 
+const activeColors = computed(() => new Set(availableColors.value));
+
+function isColorTaken(color: string) {
+  return !activeColors.value.has(color) && form.value.color_preference !== color;
+}
+
+function applyProfileResponse(data: any) {
+  const profileUser = data?.user ?? data;
+  user.value = profileUser;
+  availableColors.value = Array.isArray(data?.available_colors) ? data.available_colors : [...colors];
+
+  form.value = {
+    first_name: profileUser.first_name || '',
+    last_name: profileUser.last_name || '',
+    email: profileUser.email || '',
+    password: '',
+    password_confirmation: '',
+    color_preference: profileUser.color_preference || availableColors.value[0] || '',
+  };
+}
+
 onMounted(async () => {
-  if (user.value) {
-    form.value = {
-      first_name: user.value.first_name || '',
-      last_name: user.value.last_name || '',
-      email: user.value.email || '',
-      password: '',
-      password_confirmation: '',
-      color_preference: user.value.color_preference || 'blue',
-    };
+  loading.value = true;
+
+  try {
+    const { data } = await api.get('/profile');
+    applyProfileResponse(data);
+  } catch {
+    if (user.value) {
+      availableColors.value = [...colors];
+      form.value = {
+        first_name: user.value.first_name || '',
+        last_name: user.value.last_name || '',
+        email: user.value.email || '',
+        password: '',
+        password_confirmation: '',
+        color_preference: user.value.color_preference || '',
+      };
+    }
+  } finally {
+    loading.value = false;
   }
 });
 
@@ -146,7 +183,7 @@ async function updateProfile() {
     }
 
     const { data } = await api.put('/profile', payload);
-    user.value = data;
+    applyProfileResponse(data);
     form.value.password = '';
     form.value.password_confirmation = '';
 
@@ -186,30 +223,36 @@ async function updateProfile() {
   height: 40px;
   border-radius: 50%;
   border: 3px solid transparent;
+  position: relative;
   cursor: pointer;
   transition: all 0.2s ease;
+  overflow: hidden;
 }
 
-.color-btn.blue {
-  background-color: #2196f3;
-}
-
-.color-btn.green {
-  background-color: #4caf50;
-}
-
-.color-btn.pink {
-  background-color: #e91e63;
-}
-
-.color-btn.yellow {
-  background-color: #ffc107;
-}
 
 .color-btn.active {
-  border-color: #333;
-  box-shadow: 0 0 0 2px white, 0 0 0 4px #333;
+  border-color: var(--color-text);
+  box-shadow: 0 0 0 2px white, 0 0 0 4px var(--color-text);
   transform: scale(1.1);
+}
+
+.color-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
+}
+
+.taken-icon {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  color: #d32f2f;
+  pointer-events: none;
 }
 
 .alert {
@@ -246,6 +289,14 @@ async function updateProfile() {
 
 .w-100 {
   width: 100%;
+}
+
+:deep(.v-card) {
+  background-color: #ffffff !important;
+}
+
+:deep(.v-text-field .v-field) {
+  background-color: #ffffff !important;
 }
 </style>
 

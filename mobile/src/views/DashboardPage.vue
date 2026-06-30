@@ -50,6 +50,7 @@ import CalendarCard from '@/components/CalendarCard.vue';
    width: 100%;
    max-width: 900px;
    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+   background-color: #ffffff !important;
 }
 
 :deep(.v-app-bar) {

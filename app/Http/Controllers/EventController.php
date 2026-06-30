@@ -29,7 +29,6 @@ class EventController extends Controller
             'end' => 'required|date_format:Y-m-d|after_or_equal:start',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i',
-            'color' => 'required|string|max:50',
             'description' => 'nullable|string|max:2000',
         ]);
 
@@ -56,7 +55,6 @@ class EventController extends Controller
             'end' => 'required|date_format:Y-m-d|after_or_equal:start',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i',
-            'color' => 'required|string|max:50',
             'description' => 'nullable|string|max:2000',
         ]);
 
