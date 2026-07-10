@@ -125,8 +125,8 @@
         <v-card-title>{{ julesDialogTitle }}</v-card-title>
         <v-card-text>
           <v-text-field v-model="julesForm.title" label="Title" density="comfortable" />
-          <DatePickerField v-model="julesForm.start" label="Start date" density="comfortable" class="date-field" />
-          <DatePickerField v-model="julesForm.end" label="End date" density="comfortable" class="date-field" />
+          <DatePickerField v-model="julesForm.start" label="Start Date" density="comfortable" class="date-field" />
+          <DatePickerField v-model="julesForm.end" label="End Date" density="comfortable" class="date-field" />
           <v-select
             v-model="julesForm.recurrence_type"
             label="Repeat"
@@ -617,11 +617,11 @@ onMounted(async () => {
 }
 
 .calendar-section {
-  height: calc(100vh - 85px);
-  height: calc(100dvh - 85px);
+  height: fit-content;
+  width: 100%;
   display: flex;
   justify-content: center;
-  align-items: stretch;
+  align-items: flex-start;
 }
 
 .utilities-summary-card {
@@ -921,8 +921,7 @@ onMounted(async () => {
   }
 
   .calendar-section {
-    height: calc(100vh - 85px);
-    height: calc(100dvh - 85px);
+    height: fit-content;
   }
 
   .utility-item {

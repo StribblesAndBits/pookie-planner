@@ -62,7 +62,10 @@
         <div v-for="day in weekDays" :key="day" class="weekday-cell">{{ day }}</div>
       </div>
 
-      <div class="calendar-grid">
+      <div
+        class="calendar-grid"
+        :style="{ gridTemplateRows: `repeat(${calendarRowCount}, 74px)` }"
+      >
         <div
           v-for="(cell, idx) in calendarCells"
           :key="idx"
@@ -166,16 +169,16 @@
           <v-card-title>{{ isEditingEvent ? 'Edit Event' : 'New Event' }}</v-card-title>
           <v-card-text>
             <v-text-field v-model="eventForm.title" label="Title" density="comfortable" />
-            <DatePickerField v-model="eventForm.start" label="Start date" density="comfortable" class="date-field" />
-            <DatePickerField v-model="eventForm.end" label="End date" density="comfortable" class="date-field" />
+            <DatePickerField v-model="eventForm.start" label="Start Date" density="comfortable" class="date-field" />
+            <DatePickerField v-model="eventForm.end" label="End Date" density="comfortable" class="date-field" />
             <div class="time-controls-row" :class="{ 'all-day': eventForm.all_day }">
               <label class="all-day-checkbox">
                 <input v-model="eventForm.all_day" type="checkbox" class="all-day-checkbox-input" />
                 <span class="all-day-checkbox-label">All day</span>
               </label>
               <div class="time-row">
-                <v-text-field v-model="eventForm.start_time" label="Start time" type="time" density="compact" hide-details class="time-field" :disabled="eventForm.all_day" />
-                <v-text-field v-model="eventForm.end_time" label="End time" type="time" density="compact" hide-details class="time-field" :disabled="eventForm.all_day" />
+                <v-text-field v-model="eventForm.start_time" label="Start Time" type="time" density="compact" hide-details class="time-field" :disabled="eventForm.all_day" />
+                <v-text-field v-model="eventForm.end_time" label="End Time" type="time" density="compact" hide-details class="time-field" :disabled="eventForm.all_day" />
               </div>
             </div>
             <v-select
@@ -594,6 +597,8 @@ const dayViewMaxLaneCount = computed(() => {
 
   return maxActive;
 });
+
+const calendarRowCount = computed(() => calendarCells.value.length / 7);
 
 const calendarCells = computed(() => {
   const year = displayMonth.value.getFullYear();
@@ -1144,7 +1149,7 @@ onMounted(async () => {
 }
 
 .calendar-card {
-  height: 100%;
+  height: auto;
   display: flex;
   flex-direction: column;
   border-radius: 18px;
@@ -1153,7 +1158,7 @@ onMounted(async () => {
 .calendar-body {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
+  flex: none;
   min-height: 0;
   padding: 8px 10px 10px;
   gap: 2px;
@@ -1176,9 +1181,8 @@ onMounted(async () => {
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-template-rows: repeat(6, minmax(92px, 1fr));
   gap: 8px;
-  flex: 1 1 auto;
+  flex: none;
   min-height: 0;
 }
 
@@ -1191,11 +1195,11 @@ onMounted(async () => {
    overflow: hidden;
 }
 
-.calendar-grid .calendar-cell:nth-child(29) {
+.calendar-grid .calendar-cell:nth-last-child(7) {
   border-bottom-left-radius: 18px;
 }
 
-.calendar-grid .calendar-cell:nth-child(35) {
+.calendar-grid .calendar-cell:last-child {
   border-bottom-right-radius: 18px;
 }
 
@@ -1588,7 +1592,7 @@ onMounted(async () => {
 
    .calendar-grid {
      gap: 4px;
-     grid-template-rows: repeat(6, minmax(78px, 1fr));
+     grid-template-rows: repeat(6, 78px);
    }
 
    .calendar-cell {

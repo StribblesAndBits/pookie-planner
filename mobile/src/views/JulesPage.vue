@@ -36,11 +36,11 @@ import JulesCalendarCard from '@/components/JulesCalendarCard.vue';
 }
 
 .calendar-section {
-  height: calc(100vh - 85px);
-  height: calc(100dvh - 85px);
+  height: fit-content;
+  width: 100%;
   display: flex;
   justify-content: center;
-  align-items: stretch;
+  align-items: flex-start;
 }
 
 :deep(.v-card:not(.utility-form-card)) {

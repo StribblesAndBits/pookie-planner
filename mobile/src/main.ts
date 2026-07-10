@@ -37,6 +37,7 @@ import '@ionic/vue/css/palettes/dark.system.css';
 
 /* Theme variables */
 import './theme/variables.css';
+import '@mdi/font/css/materialdesignicons.css'
 
 const vuetify = createVuetify({
   components,

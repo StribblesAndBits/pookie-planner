@@ -65,7 +65,10 @@
         <div v-for="day in weekDays" :key="day" class="weekday-cell">{{ day }}</div>
       </div>
 
-      <div class="calendar-grid">
+      <div
+        class="calendar-grid"
+        :style="{ gridTemplateRows: `repeat(${calendarRowCount}, 74px)` }"
+      >
         <div
           v-for="(cell, idx) in calendarCells"
           :key="idx"
@@ -371,6 +374,8 @@ const isCurrentDisplayMonth = computed(() => {
 });
 const customRecurrenceSummary = computed(() => recurrenceSummary(julesForm.value));
 
+const calendarRowCount = computed(() => calendarCells.value.length / 7);
+
 const calendarCells = computed(() => {
   const year = displayMonth.value.getFullYear();
   const month = displayMonth.value.getMonth();
@@ -635,7 +640,7 @@ onMounted(async () => {
 
 <style scoped>
 .calendar-card {
-  height: 100%;
+  height: auto;
   display: flex;
   flex-direction: column;
   border-radius: 18px;
@@ -716,7 +721,7 @@ onMounted(async () => {
 .calendar-body {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
+  flex: none;
   min-height: 0;
   padding: 8px 10px 10px;
   gap: 2px;
@@ -745,9 +750,8 @@ onMounted(async () => {
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-template-rows: repeat(6, minmax(92px, 1fr));
   gap: 8px;
-  flex: 1 1 auto;
+  flex: none;
   min-height: 0;
 }
 
@@ -761,11 +765,11 @@ onMounted(async () => {
   cursor: pointer;
 }
 
-.calendar-grid .calendar-cell:nth-child(29) {
+.calendar-grid .calendar-cell:nth-last-child(7) {
   border-bottom-left-radius: 18px;
 }
 
-.calendar-grid .calendar-cell:nth-child(35) {
+.calendar-grid .calendar-cell:last-child {
   border-bottom-right-radius: 18px;
 }
 
@@ -956,7 +960,7 @@ onMounted(async () => {
 @media (max-width: 768px) {
   .calendar-grid {
     gap: 4px;
-    grid-template-rows: repeat(6, minmax(78px, 1fr));
+    grid-template-rows: repeat(6, 78px);
   }
 
   .calendar-cell {
