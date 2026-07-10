@@ -5,7 +5,7 @@
     <div class="dashboard-content">
       <div class="dashboard-container">
         <div class="calendar-section">
-          <CalendarCard />
+          <CalendarCard :jules-days="julesDays" />
         </div>
 
         <v-card class="utilities-summary-card">
@@ -73,9 +73,6 @@
                   <div class="utility-main">
                     <span class="utility-name">{{ day.title }}</span>
                     <span class="utility-meta">{{ formatJulesOccurrenceDate(day.occurrence_date) }}</span>
-                  </div>
-                  <div class="utility-actions">
-                    <span class="utility-tag essential">Jules</span>
                   </div>
                 </li>
               </ul>

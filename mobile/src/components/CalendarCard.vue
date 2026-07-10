@@ -78,7 +78,10 @@
           @click="handleCellClick(cell)"
         >
           <template v-if="cell.date">
-            <div class="date-label">{{ cell.dayNumber }}</div>
+            <div class="date-row">
+              <span class="date-label">{{ cell.dayNumber }}</span>
+              <span v-if="hasJulesDay(cell.date)" class="jules-marker">J</span>
+            </div>
 
             <div
               v-for="(event, eventIndex) in getVisibleEvents(cell.date)"
@@ -310,6 +313,7 @@ import {
 import { useAuth } from '@/composables/useAuth';
 import api from '@/services/api';
 import DatePickerField from '@/components/DatePickerField.vue';
+import { occursOnDate } from '@/utils/recurrence';
 
 type CalendarEvent = {
   id: number;
@@ -354,6 +358,25 @@ type CalendarCell = {
   dayNumber: number | null;
   otherMonth?: boolean;
 };
+
+type JulesDayRecord = {
+  start: string;
+  end: string;
+  recurrence_type?: 'none' | 'daily' | 'weekly' | 'biweekly' | 'annually' | 'custom';
+  recurrence_interval?: number | null;
+  recurrence_unit?: 'day' | 'week' | 'month' | 'year' | null;
+  recurrence_days_of_week?: number[] | null;
+  recurrence_end_type?: 'never' | 'on' | 'after' | null;
+  recurrence_end_date?: string | null;
+  recurrence_occurrences?: number | null;
+  excluded_occurrences?: string[] | null;
+};
+
+const props = withDefaults(defineProps<{
+  julesDays?: JulesDayRecord[];
+}>(), {
+  julesDays: () => [],
+});
 
 const { user } = useAuth();
 
@@ -644,6 +667,10 @@ function getVisibleEvents(date: string) {
 function getHiddenEventCount(date: string) {
   const total = getEventsForDate(date).length;
   return total > 3 ? total - 2 : 0;
+}
+
+function hasJulesDay(date: string) {
+  return props.julesDays.some((day) => occursOnDate(day, date));
 }
 
 function parseTimeToMinutes(time: string) {
@@ -1235,8 +1262,29 @@ onMounted(async () => {
 .date-label {
   font-size: 12px;
   font-weight: 700;
-  margin-bottom: 6px;
   color: #0f172a;
+  line-height: 1;
+}
+
+.date-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.jules-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  border-radius: 999px;
+  background: #000000;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 10px;
   line-height: 1;
 }
 
