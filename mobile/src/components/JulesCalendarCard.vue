@@ -745,7 +745,7 @@ onMounted(async () => {
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-template-rows: repeat(6, minmax(94px, 1fr));
+  grid-template-rows: repeat(6, minmax(92px, 1fr));
   gap: 8px;
   flex: 1 1 auto;
   min-height: 0;
@@ -774,8 +774,10 @@ onMounted(async () => {
 }
 
 .calendar-cell.today {
-  border-color: #93c5fd;
-  box-shadow: inset 0 0 0 1px #bfdbfe;
+  border-color: #60a5fa;
+  box-shadow: inset 0 0 0 2px #93c5fd;
+  outline: 2px solid rgba(147, 197, 253, 0.9);
+  outline-offset: -2px;
 }
 
 .calendar-cell.other-month {
@@ -958,7 +960,7 @@ onMounted(async () => {
   }
 
   .calendar-cell {
-    min-height: 72px;
+    min-height: 64px;
     padding: 8px;
   }
 }

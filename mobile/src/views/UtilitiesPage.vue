@@ -65,7 +65,7 @@
             :disabled="isUtilityModalReadOnly"
           />
           <DatePickerField v-model="utilityForm.due_date" label="Due date" density="comfortable" class="date-field" :disabled="isUtilityModalReadOnly" />
-          <v-text-field v-model.number="utilityForm.amount" label="Amount" prefix="$" type="number" step="0.01" min="0" density="comfortable" :disabled="isUtilityModalReadOnly" />
+          <CurrencyAmountField v-model="utilityForm.amount" label="Amount" prefix="$" :disabled="isUtilityModalReadOnly" />
           <label class="all-day-checkbox" :class="{ 'is-disabled': isUtilityModalReadOnly }">
             <input v-model="utilityForm.recurs_monthly" type="checkbox" class="all-day-checkbox-input" :disabled="isUtilityModalReadOnly">
             <span class="all-day-checkbox-label">Recurring monthly</span>
@@ -90,6 +90,7 @@ import { IonPage } from '@ionic/vue';
 import { VCard, VCardTitle, VCardText, VBtn, VDialog, VTextField, VSelect, VCardActions, VSpacer } from 'vuetify/components';
 import Navbar from '@/components/Navbar.vue';
 import DatePickerField from '@/components/DatePickerField.vue';
+import CurrencyAmountField from '@/components/CurrencyAmountField.vue';
 import api from '@/services/api';
 
 type UtilityItem = {

@@ -37,7 +37,15 @@ export function formatDateOnly(date: Date): string {
 }
 
 export function formatDisplayDate(dateStr: string): string {
-  return new Date(`${dateStr}T00:00:00`).toLocaleDateString('en-US', {
+  if (!dateStr) return '';
+
+  const date = dateStr.includes('T') || dateStr.includes(' ')
+    ? new Date(dateStr)
+    : new Date(`${dateStr}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) return dateStr;
+
+  return date.toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',

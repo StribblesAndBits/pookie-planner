@@ -14,6 +14,10 @@
       <v-card-title>{{ label || 'Select date' }}</v-card-title>
       <v-card-text class="date-picker-body">
         <v-date-picker v-model="draftDate" :min="min" :max="max" hide-header />
+        <div class="date-picker-today" aria-label="Current date">
+          <span class="date-picker-today__dot" aria-hidden="true" />
+          <span>Today: {{ todayDisplayValue }}</span>
+        </div>
       </v-card-text>
       <v-card-actions>
         <v-spacer />
@@ -27,6 +31,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { VTextField, VDialog, VCard, VCardTitle, VCardText, VCardActions, VBtn, VSpacer, VDatePicker } from 'vuetify/components';
+import { formatDisplayDate } from '@/utils/recurrence';
 
 const props = withDefaults(defineProps<{
   modelValue: string;
@@ -49,25 +54,20 @@ const emit = defineEmits<{
 const showPicker = ref(false);
 const draftDate = ref<string | Date>('');
 const displayValue = computed(() => formatDisplayDate(props.modelValue));
+const todayDisplayValue = computed(() => formatDisplayDate(getTodayDateString()));
 
 function getTodayDateString(): string {
-  return new Date().toISOString().slice(0, 10);
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function normalizeDateValue(value: string | Date | null | undefined): string {
   if (!value) return '';
   if (typeof value === 'string') return value.slice(0, 10);
   return value.toISOString().slice(0, 10);
-}
-
-function formatDisplayDate(value: string): string {
-  if (!value) return '';
-  return new Date(`${value}T00:00:00`).toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
 }
 
 function openPicker() {
@@ -93,6 +93,23 @@ function applyDate() {
 
 .date-picker-body {
   padding-top: 4px;
+}
+
+.date-picker-today {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.date-picker-today__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background-color: #000000;
+  flex: 0 0 auto;
 }
 
 .action-btn {

@@ -55,7 +55,7 @@
           <v-card-title class="utilities-summary-title jules-summary-title-row">
             <span>Jules Days</span>
             <div class="summary-actions">
-              <v-btn color="primary" size="x-small" density="comfortable" rounded="lg" class="action-btn" @click="openAddJulesDayDialog">
+              <v-btn color="primary" size="x-small" density="comfortable" rounded="lg" class="action-btn" @click="openAddJulesDayDialog()">
                 Add Jules Day
               </v-btn>
               <v-btn color="primary" size="x-small" density="comfortable" rounded="lg" class="action-btn" @click="goToJules">
@@ -103,7 +103,7 @@
             :menu-props="{ contentClass: 'event-select-menu' }"
           />
           <DatePickerField v-model="utilityForm.due_date" label="Due date" density="comfortable" class="date-field" />
-          <v-text-field v-model.number="utilityForm.amount" label="Amount" prefix="$" type="number" step="0.01" min="0" density="comfortable" class="number-spinner-field" />
+          <CurrencyAmountField v-model="utilityForm.amount" label="Amount" prefix="$" />
           <label class="all-day-checkbox">
             <input v-model="utilityForm.recurs_monthly" type="checkbox" class="all-day-checkbox-input">
             <span class="all-day-checkbox-label">Recurring monthly</span>
@@ -244,6 +244,7 @@ import { VCard, VCardTitle, VCardText, VBtn, VDialog, VTextField, VSelect, VCard
 import Navbar from '@/components/Navbar.vue';
 import CalendarCard from '@/components/CalendarCard.vue';
 import DatePickerField from '@/components/DatePickerField.vue';
+import CurrencyAmountField from '@/components/CurrencyAmountField.vue';
 import api from '@/services/api';
 import {
   datesInRange,
@@ -423,15 +424,16 @@ function openAddJulesDayDialog(date?: string) {
   julesFormError.value = '';
   showAddJulesDialog.value = true;
   showJulesCustomRecurrenceDialog.value = false;
+  const initialDate = typeof date === 'string' && date ? date : formatDateString(new Date());
   julesForm.value = {
     title: 'Jules Day',
-    start: date || formatDateString(new Date()),
-    end: date || formatDateString(new Date()),
+    start: initialDate,
+    end: initialDate,
     description: '',
     recurrence_type: 'none',
     recurrence_interval: 1,
     recurrence_unit: 'week',
-    recurrence_days_of_week: [new Date(`${(date || formatDateString(new Date()))}T00:00:00`).getDay()],
+    recurrence_days_of_week: [new Date(`${initialDate}T00:00:00`).getDay()],
     recurrence_end_type: 'never',
     recurrence_end_date: '',
     recurrence_occurrences: 13,

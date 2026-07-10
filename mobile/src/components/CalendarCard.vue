@@ -362,7 +362,14 @@ function formatDateString(date: Date): string {
 }
 
 function formatDisplayDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
+  if (!dateStr) return '';
+
+  const date = dateStr.includes('T') || dateStr.includes(' ')
+    ? new Date(dateStr)
+    : new Date(`${dateStr}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) return dateStr;
+
   return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 }
 
@@ -1169,7 +1176,7 @@ onMounted(async () => {
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-template-rows: repeat(6, minmax(94px, 1fr));
+  grid-template-rows: repeat(6, minmax(92px, 1fr));
   gap: 8px;
   flex: 1 1 auto;
   min-height: 0;
@@ -1197,8 +1204,10 @@ onMounted(async () => {
 }
 
 .calendar-cell.today {
-  border-color: #93c5fd;
-  box-shadow: inset 0 0 0 1px #bfdbfe;
+  border-color: #60a5fa;
+  box-shadow: inset 0 0 0 2px #93c5fd;
+  outline: 2px solid rgba(147, 197, 253, 0.9);
+  outline-offset: -2px;
 }
 
 .calendar-cell.other-month {
@@ -1583,6 +1592,7 @@ onMounted(async () => {
    }
 
    .calendar-cell {
+     min-height: 64px;
      padding: 6px 4px;
      border-radius: 4px;
    }
