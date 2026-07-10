@@ -3,21 +3,17 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Event extends Model
+class JulesDay extends Model
 {
     public const RECURRENCE_TYPES = ['none', 'daily', 'weekly', 'biweekly', 'annually', 'custom'];
     public const CUSTOM_RECURRENCE_UNITS = ['day', 'week', 'month', 'year'];
     public const RECURRENCE_END_TYPES = ['never', 'on', 'after'];
 
     protected $fillable = [
-        'user_id',
         'title',
         'start',
         'end',
-        'start_time',
-        'end_time',
         'description',
         'all_day',
         'recurrence_type',
@@ -42,10 +38,5 @@ class Event extends Model
             'recurrence_end_date' => 'date:Y-m-d',
             'excluded_occurrences' => 'array',
         ];
-    }
-
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
     }
 }

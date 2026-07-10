@@ -2,139 +2,126 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Event;
+use App\Models\JulesDay;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
-class EventController extends Controller
+class JulesDayController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $events = Event::query()
-            ->where('user_id', $request->user()->id)
+        $julesDays = JulesDay::query()
             ->orderBy('start')
-            ->orderBy('start_time')
             ->orderBy('id')
             ->get();
 
-        return response()->json($events);
+        return response()->json($julesDays);
     }
 
     public function store(Request $request): JsonResponse
     {
-        $validated = $request->validate($this->eventValidationRules());
-        $payload = $this->normalizeEventPayload($validated);
-        $this->validateDateTimeRange($payload['start'], $payload['start_time'], $payload['end'], $payload['end_time']);
+        $validated = $request->validate($this->julesDayValidationRules());
+        $payload = $this->normalizeJulesDayPayload($validated);
+        $this->validateDateRange($payload['start'], $payload['end']);
 
-        $event = Event::create([
+        $julesDay = JulesDay::create([
             ...$payload,
-            'user_id' => $request->user()->id,
         ]);
 
-        return response()->json($event, 201);
+        return response()->json($julesDay, 201);
     }
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $event = Event::query()
+        $julesDay = JulesDay::query()
             ->where('id', $id)
-            ->where('user_id', $request->user()->id)
             ->firstOrFail();
 
-        $validated = $request->validate($this->eventValidationRules());
-        $payload = $this->normalizeEventPayload($validated);
-        $this->validateDateTimeRange($payload['start'], $payload['start_time'], $payload['end'], $payload['end_time']);
+        $validated = $request->validate($this->julesDayValidationRules());
+        $payload = $this->normalizeJulesDayPayload($validated);
+        $this->validateDateRange($payload['start'], $payload['end']);
 
-        $event->update($payload);
+        $julesDay->update($payload);
 
-        return response()->json($event);
+        return response()->json($julesDay);
     }
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        $event = Event::query()
+        $julesDay = JulesDay::query()
             ->where('id', $id)
-            ->where('user_id', $request->user()->id)
             ->firstOrFail();
 
         $scope = $request->input('scope', 'series');
         $occurrenceStart = $request->input('occurrence_start');
 
-        if ($scope === 'single' && $event->recurrence_type !== 'none' && is_string($occurrenceStart) && $occurrenceStart !== '') {
-            $excluded = $event->excluded_occurrences ?? [];
+        if ($scope === 'single' && $julesDay->recurrence_type !== 'none' && is_string($occurrenceStart) && $occurrenceStart !== '') {
+            $excluded = $julesDay->excluded_occurrences ?? [];
             $excluded[] = $occurrenceStart;
-            $event->update([
+            $julesDay->update([
                 'excluded_occurrences' => array_values(array_unique($excluded)),
             ]);
 
-            return response()->json(['message' => 'Event occurrence deleted.']);
+            return response()->json(['message' => 'Jules Day occurrence deleted.']);
         }
 
-        if ($scope === 'future' && $event->recurrence_type !== 'none' && is_string($occurrenceStart) && $occurrenceStart !== '') {
-            $seriesStart = $event->getRawOriginal('start');
+        if ($scope === 'future' && $julesDay->recurrence_type !== 'none' && is_string($occurrenceStart) && $occurrenceStart !== '') {
+            $seriesStart = $julesDay->getRawOriginal('start');
             if ($occurrenceStart <= $seriesStart) {
-                $event->delete();
+                $julesDay->delete();
 
-                return response()->json(['message' => 'Event deleted.']);
+                return response()->json(['message' => 'Jules Day deleted.']);
             }
 
-            $event->update([
+            $julesDay->update([
                 'recurrence_end_type' => 'on',
                 'recurrence_end_date' => $this->previousDate($occurrenceStart),
                 'recurrence_occurrences' => null,
             ]);
 
-            return response()->json(['message' => 'Event series truncated.']);
+            return response()->json(['message' => 'Jules Day series truncated.']);
         }
 
-        $event->delete();
+        $julesDay->delete();
 
-        return response()->json(['message' => 'Event deleted.']);
+        return response()->json(['message' => 'Jules Day deleted.']);
     }
 
-    private function previousDate(string $date): string
+    private function validateDateRange(string $startDate, string $endDate): void
     {
-        return date('Y-m-d', strtotime($date . ' -1 day'));
-    }
-
-    private function validateDateTimeRange(string $startDate, string $startTime, string $endDate, string $endTime): void
-    {
-        $start = strtotime("{$startDate} {$startTime}");
-        $end = strtotime("{$endDate} {$endTime}");
+        $start = strtotime($startDate);
+        $end = strtotime($endDate);
 
         if ($start === false || $end === false || $end < $start) {
             throw ValidationException::withMessages([
-                'end_time' => ['End date/time must be after or equal to start date/time.'],
+                'end' => ['End date must be after or equal to start date.'],
             ]);
         }
     }
 
-    private function eventValidationRules(): array
+    private function julesDayValidationRules(): array
     {
         return [
             'title' => 'required|string|max:255',
             'start' => 'required|date_format:Y-m-d',
             'end' => 'required|date_format:Y-m-d|after_or_equal:start',
-            'start_time' => 'nullable|date_format:H:i',
-            'end_time' => 'nullable|date_format:H:i',
             'description' => 'nullable|string|max:2000',
             'all_day' => 'nullable|boolean',
-            'recurrence_type' => ['nullable', Rule::in(Event::RECURRENCE_TYPES)],
+            'recurrence_type' => ['nullable', Rule::in(JulesDay::RECURRENCE_TYPES)],
             'recurrence_interval' => 'nullable|integer|min:1|max:999',
-            'recurrence_unit' => ['nullable', Rule::in(Event::CUSTOM_RECURRENCE_UNITS)],
+            'recurrence_unit' => ['nullable', Rule::in(JulesDay::CUSTOM_RECURRENCE_UNITS)],
             'recurrence_days_of_week' => 'nullable|array',
             'recurrence_days_of_week.*' => 'integer|min:0|max:6',
-            'recurrence_end_type' => ['nullable', Rule::in(Event::RECURRENCE_END_TYPES)],
+            'recurrence_end_type' => ['nullable', Rule::in(JulesDay::RECURRENCE_END_TYPES)],
             'recurrence_end_date' => 'nullable|date_format:Y-m-d|after_or_equal:start',
             'recurrence_occurrences' => 'nullable|integer|min:1|max:9999',
         ];
     }
 
-    private function normalizeEventPayload(array $validated): array
+    private function normalizeJulesDayPayload(array $validated): array
     {
-        $allDay = (bool) ($validated['all_day'] ?? false);
         $recurrenceType = $validated['recurrence_type'] ?? 'none';
         $customInterval = (int) ($validated['recurrence_interval'] ?? 1);
         $customUnit = $validated['recurrence_unit'] ?? 'week';
@@ -149,10 +136,8 @@ class EventController extends Controller
             'title' => $validated['title'],
             'start' => $validated['start'],
             'end' => $validated['end'],
-            'start_time' => $allDay ? '00:00' : ($validated['start_time'] ?? ''),
-            'end_time' => $allDay ? '23:59' : ($validated['end_time'] ?? ''),
             'description' => $validated['description'] ?? null,
-            'all_day' => $allDay,
+            'all_day' => true,
             'recurrence_type' => $recurrenceType,
             'recurrence_interval' => null,
             'recurrence_unit' => null,
@@ -161,12 +146,6 @@ class EventController extends Controller
             'recurrence_end_date' => null,
             'recurrence_occurrences' => null,
         ];
-
-        if (!$allDay && ($payload['start_time'] === '' || $payload['end_time'] === '')) {
-            throw ValidationException::withMessages([
-                'start_time' => ['Start and end times are required unless the event is all day.'],
-            ]);
-        }
 
         if ($recurrenceType === 'none') {
             return $payload;
@@ -231,5 +210,10 @@ class EventController extends Controller
         sort($normalized);
 
         return $normalized;
+    }
+
+    private function previousDate(string $date): string
+    {
+        return date('Y-m-d', strtotime($date . ' -1 day'));
     }
 }

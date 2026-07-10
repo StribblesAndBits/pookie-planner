@@ -1,15 +1,63 @@
 <template>
-  <v-card>
-      <v-card-title class="title-row">
+  <v-card class="calendar-card">
+      <v-card-title class="title-row calendar-title-row">
       <span>Events Calendar</span>
-        <v-btn color="primary" size="x-small" density="comfortable" rounded="lg" class="action-btn" @click="openCreateEventDialog()">New Event</v-btn>
+        <v-btn color="primary" size="x-small" density="comfortable" rounded="lg" class="action-btn calendar-nav-btn" @click="openCreateEventDialog()">New Event</v-btn>
     </v-card-title>
-    <v-card-text>
+    <v-card-text class="calendar-body">
       <div class="calendar-header">
-        <v-btn variant="text" size="small" @click="previousMonth">Prev</v-btn>
-        <div class="month-title">{{ monthLabel }}</div>
-        <v-btn variant="text" size="small" @click="nextMonth">Next</v-btn>
+        <v-btn size="x-small" density="comfortable" rounded="lg" class="action-btn calendar-nav-btn" @click="previousMonth">Prev</v-btn>
+        <div class="month-controls">
+          <button type="button" class="month-title month-picker-trigger" @click="openMonthYearDialog">
+            <span>{{ monthLabel }}</span>
+          </button>
+          <v-btn
+            size="x-small"
+            density="comfortable"
+            rounded="lg"
+            class="action-btn calendar-nav-btn today-month-btn"
+            title="Return to current month"
+            aria-label="Return to current month"
+            :disabled="isCurrentDisplayMonth"
+            @click="goToCurrentMonth"
+          >
+            ↩
+          </v-btn>
+        </div>
+        <v-btn size="x-small" density="comfortable" rounded="lg" class="action-btn calendar-nav-btn" @click="nextMonth">Next</v-btn>
       </div>
+
+      <v-dialog v-model="showMonthYearDialog" max-width="380px">
+        <v-card class="app-modal-card">
+          <v-card-title>Select month and year</v-card-title>
+          <v-card-text class="month-year-dialog-fields">
+            <v-select
+              v-model="pickerMonth"
+              label="Month"
+              density="comfortable"
+              :items="monthPickerOptions"
+              item-title="title"
+              item-value="value"
+              :menu-props="{ contentClass: 'event-select-menu' }"
+            />
+            <v-select
+              v-model="pickerYear"
+              label="Year"
+              density="comfortable"
+              :items="yearPickerOptions"
+              item-title="title"
+              item-value="value"
+              :menu-props="{ contentClass: 'event-select-menu' }"
+            />
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer />
+            <v-btn color="primary" class="action-btn" size="x-small" density="comfortable" rounded="lg" @click="showMonthYearDialog = false">Cancel</v-btn>
+            <v-btn color="primary" class="action-btn" size="x-small" density="comfortable" rounded="lg" @click="applyMonthYearSelection">Done</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
       <div class="weekday-row">
         <div v-for="day in weekDays" :key="day" class="weekday-cell">{{ day }}</div>
       </div>
@@ -47,10 +95,10 @@
 
       <!-- Day View Dialog -->
       <v-dialog v-model="showDayView" max-width="500px">
-        <v-card v-if="selectedDayDate" class="day-view-card">
+        <v-card v-if="selectedDayDate" class="day-view-card app-modal-card">
           <v-card-title class="title-row day-title-row">
             <span>{{ formatDisplayDate(selectedDayDate) }}</span>
-            <v-btn color="primary" size="x-small" density="comfortable" rounded="lg" class="action-btn" @click="openCreateEventDialog(selectedDayDate)">New Event</v-btn>
+            <v-btn color="primary" size="x-small" density="comfortable" rounded="lg" class="action-btn day-view-header-btn" @click="openCreateEventDialog(selectedDayDate)">New Event</v-btn>
           </v-card-title>
           <v-card-text class="day-view-content">
             <div class="day-timeline-wrapper">
@@ -91,14 +139,19 @@
 
       <!-- Event Detail Dialog -->
       <v-dialog v-model="showModal" max-width="500px">
-        <v-card v-if="selectedEvent" class="event-popover-card">
+        <v-card v-if="selectedEvent" class="event-popover-card app-modal-card">
           <v-card-title>{{ selectedEvent.title }}</v-card-title>
           <v-card-text>
-            <p><strong>Date:</strong> {{ formatDisplayDate(selectedEvent.start) }}</p>
+          <p><strong>Date:</strong> {{ formatDisplayDate(selectedEvent.occurrence_date || selectedEvent.start) }}</p>
             <p><strong>Time:</strong> {{ formatEventTimeRange(selectedEvent) }}</p>
-            <p v-if="selectedEvent.description"><strong>Description:</strong> {{ selectedEvent.description }}</p>
-            <div class="event-color-preview" :style="{ backgroundColor: getColorValue(getCurrentUserColor()) }" />
-          </v-card-text>
+          <p v-if="selectedEvent.recurrence_type && selectedEvent.recurrence_type !== 'none'">
+            <strong>Repeats:</strong> {{ recurrenceSummaryForEvent(selectedEvent) }}
+          </p>
+          <p v-if="selectedEvent.description"><strong>Description:</strong> {{ selectedEvent.description }}</p>
+          <div class="event-color-preview" :style="{ backgroundColor: getColorValue(getCurrentUserColor()) }">
+            <span class="event-color-preview-name">{{ eventCreatorLabel }}</span>
+          </div>
+        </v-card-text>
           <v-card-actions>
             <v-btn v-if="canManageSelectedEvent" color="primary" variant="text" @click="openEditEventDialog">Edit</v-btn>
             <v-btn v-if="canManageSelectedEvent" color="error" variant="text" @click="deleteSelectedEvent">Delete</v-btn>
@@ -109,15 +162,34 @@
        </v-dialog>
 
       <v-dialog v-model="showEventForm" max-width="500px">
-        <v-card>
+        <v-card class="app-modal-card">
           <v-card-title>{{ isEditingEvent ? 'Edit Event' : 'New Event' }}</v-card-title>
           <v-card-text>
             <v-text-field v-model="eventForm.title" label="Title" density="comfortable" />
-            <v-text-field v-model="eventForm.start" label="Start date" type="date" density="comfortable" />
-            <v-text-field v-model="eventForm.end" label="End date" type="date" density="comfortable" />
-            <div class="time-row">
-              <v-text-field v-model="eventForm.start_time" label="Start time" type="time" density="comfortable" />
-              <v-text-field v-model="eventForm.end_time" label="End time" type="time" density="comfortable" />
+            <DatePickerField v-model="eventForm.start" label="Start date" density="comfortable" class="date-field" />
+            <DatePickerField v-model="eventForm.end" label="End date" density="comfortable" class="date-field" />
+            <div class="time-controls-row" :class="{ 'all-day': eventForm.all_day }">
+              <label class="all-day-checkbox">
+                <input v-model="eventForm.all_day" type="checkbox" class="all-day-checkbox-input" />
+                <span class="all-day-checkbox-label">All day</span>
+              </label>
+              <div class="time-row">
+                <v-text-field v-model="eventForm.start_time" label="Start time" type="time" density="compact" hide-details class="time-field" :disabled="eventForm.all_day" />
+                <v-text-field v-model="eventForm.end_time" label="End time" type="time" density="compact" hide-details class="time-field" :disabled="eventForm.all_day" />
+              </div>
+            </div>
+            <v-select
+              v-model="eventForm.recurrence_type"
+              label="Repeat"
+              density="comfortable"
+              :items="recurrenceOptions"
+              item-title="title"
+              item-value="value"
+              :menu-props="{ contentClass: 'event-select-menu' }"
+              @update:model-value="handleRecurrenceTypeChange"
+            />
+            <div v-if="eventForm.recurrence_type === 'custom'" class="custom-recurrence-inline">
+              <p class="custom-recurrence-summary">{{ customRecurrenceSummary }}</p>
             </div>
             <v-textarea v-model="eventForm.description" label="Description" rows="3" density="comfortable" />
             <p v-if="formError" class="form-error">{{ formError }}</p>
@@ -129,15 +201,112 @@
            </v-card-actions>
         </v-card>
       </v-dialog>
+
+      <v-dialog v-model="showDeleteScopeDialog" max-width="420px">
+        <v-card class="app-modal-card">
+           <v-card-title>Delete recurring event?</v-card-title>
+           <v-card-text>
+             <p class="helper-copy">Do you want to remove only this occurrence or this occurrence and everything after it?</p>
+           </v-card-text>
+           <v-card-actions>
+             <v-spacer />
+             <v-btn color="primary" class="action-btn" size="x-small" density="comfortable" rounded="lg" @click="showDeleteScopeDialog = false">Cancel</v-btn>
+             <v-btn color="error" class="action-btn" size="x-small" density="comfortable" rounded="lg" @click="confirmDeleteEvent('single')">Just this day</v-btn>
+             <v-btn color="error" class="action-btn" size="x-small" density="comfortable" rounded="lg" @click="confirmDeleteEvent('future')">This and following</v-btn>
+           </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <v-dialog v-model="showCustomRecurrenceDialog" max-width="460px">
+        <v-card class="custom-recurrence-card app-modal-card">
+          <v-card-title>Custom recurrence</v-card-title>
+          <v-card-text>
+            <div class="custom-row">
+              <span class="custom-label">Repeat every</span>
+              <v-text-field
+                v-model.number="eventForm.recurrence_interval"
+                type="number"
+                min="1"
+                max="999"
+                density="comfortable"
+                hide-details
+                class="custom-interval-field number-spinner-field"
+              />
+              <v-select
+                v-model="eventForm.recurrence_unit"
+                density="comfortable"
+                hide-details
+                :items="customRecurrenceUnits"
+                item-title="title"
+                item-value="value"
+                :menu-props="{ contentClass: 'event-select-menu' }"
+                class="custom-unit-field"
+                @update:model-value="handleCustomUnitChange"
+              />
+            </div>
+
+            <div v-if="eventForm.recurrence_unit === 'week'" class="repeat-on-section">
+              <div class="custom-label">Repeat on</div>
+              <div class="weekday-picker">
+                <button
+                  v-for="day in weekdayOptions"
+                  :key="day.value"
+                  type="button"
+                  class="weekday-circle"
+                  :class="{ active: eventForm.recurrence_days_of_week.includes(day.value) }"
+                  @click="toggleCustomWeekday(day.value)"
+                >
+                  {{ day.label }}
+                </button>
+              </div>
+            </div>
+
+            <div class="ends-section">
+              <div class="custom-label">Ends</div>
+              <v-radio-group v-model="eventForm.recurrence_end_type" density="comfortable" hide-details>
+                <v-radio label="Never" value="never" />
+                <v-radio label="On" value="on" />
+                <DatePickerField
+                  v-if="eventForm.recurrence_end_type === 'on'"
+                  v-model="eventForm.recurrence_end_date"
+                  label="End date"
+                  density="comfortable"
+                  class="custom-end-field"
+                />
+                <v-radio label="After" value="after" />
+                <v-text-field
+                  v-if="eventForm.recurrence_end_type === 'after'"
+                  v-model.number="eventForm.recurrence_occurrences"
+                  type="number"
+                  min="1"
+                  max="9999"
+                  density="comfortable"
+                  class="custom-end-field number-spinner-field"
+                  suffix="occurrences"
+                />
+              </v-radio-group>
+            </div>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer />
+            <v-btn color="primary" class="action-btn" size="x-small" density="comfortable" rounded="lg" @click="showCustomRecurrenceDialog = false">Cancel</v-btn>
+            <v-btn color="primary" class="action-btn" size="x-small" density="comfortable" rounded="lg" @click="showCustomRecurrenceDialog = false">Done</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
      </v-card-text>
    </v-card>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { VCard, VCardTitle, VCardText, VCardActions, VDialog, VBtn, VSpacer, VTextField, VTextarea } from 'vuetify/components';
+import {
+  VCard, VCardTitle, VCardText, VCardActions, VDialog, VBtn, VSpacer, VTextField, VTextarea,
+  VSelect, VRadioGroup, VRadio,
+} from 'vuetify/components';
 import { useAuth } from '@/composables/useAuth';
 import api from '@/services/api';
+import DatePickerField from '@/components/DatePickerField.vue';
 
 type CalendarEvent = {
   id: number;
@@ -148,6 +317,16 @@ type CalendarEvent = {
   start_time: string;
   end_time: string;
   description?: string | null;
+  all_day?: boolean;
+  recurrence_type?: 'none' | 'daily' | 'weekly' | 'biweekly' | 'annually' | 'custom';
+  recurrence_interval?: number | null;
+  recurrence_unit?: 'day' | 'week' | 'month' | 'year' | null;
+  recurrence_days_of_week?: number[] | null;
+  recurrence_end_type?: 'never' | 'on' | 'after' | null;
+  recurrence_end_date?: string | null;
+  recurrence_occurrences?: number | null;
+  excluded_occurrences?: string[] | null;
+  occurrence_date?: string;
 };
 
 type EventForm = {
@@ -157,6 +336,14 @@ type EventForm = {
   start_time: string;
   end_time: string;
   description: string;
+  all_day: boolean;
+  recurrence_type: 'none' | 'daily' | 'weekly' | 'biweekly' | 'annually' | 'custom';
+  recurrence_interval: number;
+  recurrence_unit: 'day' | 'week' | 'month' | 'year';
+  recurrence_days_of_week: number[];
+  recurrence_end_type: 'never' | 'on' | 'after';
+  recurrence_end_date: string;
+  recurrence_occurrences: number;
 };
 
 type CalendarCell = {
@@ -177,6 +364,46 @@ function formatDateString(date: Date): string {
 function formatDisplayDate(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00');
   return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function parseDateOnly(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map((value) => Number(value));
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function formatDateOnly(date: Date): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(dateStr: string, amount: number): string {
+  const date = parseDateOnly(dateStr);
+  date.setUTCDate(date.getUTCDate() + amount);
+  return formatDateOnly(date);
+}
+
+function addMonths(dateStr: string, amount: number): string {
+  const date = parseDateOnly(dateStr);
+  const day = date.getUTCDate();
+  date.setUTCDate(1);
+  date.setUTCMonth(date.getUTCMonth() + amount);
+  const daysInMonth = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+  date.setUTCDate(Math.min(day, daysInMonth));
+  return formatDateOnly(date);
+}
+
+function addYears(dateStr: string, amount: number): string {
+  const date = parseDateOnly(dateStr);
+  date.setUTCFullYear(date.getUTCFullYear() + amount);
+  return formatDateOnly(date);
+}
+
+function diffDays(startDate: string, endDate: string): number {
+  const start = parseDateOnly(startDate).getTime();
+  const end = parseDateOnly(endDate).getTime();
+  return Math.floor((end - start) / 86400000);
 }
 
 function getColorValue(color: string): string {
@@ -219,6 +446,7 @@ function getDayViewEventStyle() {
 
 function getDefaultEventForm(date?: string): EventForm {
   const initialDate = date || formatDateString(new Date());
+  const weekday = parseDateOnly(initialDate).getUTCDay();
   return {
     title: '',
     start: initialDate,
@@ -226,6 +454,14 @@ function getDefaultEventForm(date?: string): EventForm {
     start_time: '09:00',
     end_time: '10:00',
     description: '',
+    all_day: false,
+    recurrence_type: 'none',
+    recurrence_interval: 1,
+    recurrence_unit: 'week',
+    recurrence_days_of_week: [weekday],
+    recurrence_end_type: 'never',
+    recurrence_end_date: '',
+    recurrence_occurrences: 13,
   };
 }
 
@@ -234,18 +470,69 @@ const selectedEvent = ref<CalendarEvent | null>(null);
 const showDayView = ref(false);
 const selectedDayDate = ref<string | null>(null);
 const showEventForm = ref(false);
+const showCustomRecurrenceDialog = ref(false);
+const showMonthYearDialog = ref(false);
+const showDeleteScopeDialog = ref(false);
 const isEditingEvent = ref(false);
 const savingEvent = ref(false);
 const formError = ref('');
 const eventForm = ref<EventForm>(getDefaultEventForm());
 const displayMonth = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+const pickerMonth = ref(displayMonth.value.getMonth());
+const pickerYear = ref(displayMonth.value.getFullYear());
 const todayDate = formatDateString(new Date());
+const deleteScopeTarget = ref<CalendarEvent | null>(null);
 
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const events = ref<CalendarEvent[]>([]);
+const weekdayOptions = weekDays.map((label, value) => ({ label: label.slice(0, 1), value }));
+const recurrenceOptions = [
+  { title: 'Does not repeat', value: 'none' },
+  { title: 'Daily', value: 'daily' },
+  { title: 'Weekly', value: 'weekly' },
+  { title: 'Bi-weekly', value: 'biweekly' },
+  { title: 'Annually', value: 'annually' },
+  { title: 'Custom...', value: 'custom' },
+] as const;
+const customRecurrenceUnits = [
+  { title: 'day', value: 'day' },
+  { title: 'week', value: 'week' },
+  { title: 'month', value: 'month' },
+  { title: 'year', value: 'year' },
+] as const;
+const monthPickerOptions = [
+  { title: 'January', value: 0 },
+  { title: 'February', value: 1 },
+  { title: 'March', value: 2 },
+  { title: 'April', value: 3 },
+  { title: 'May', value: 4 },
+  { title: 'June', value: 5 },
+  { title: 'July', value: 6 },
+  { title: 'August', value: 7 },
+  { title: 'September', value: 8 },
+  { title: 'October', value: 9 },
+  { title: 'November', value: 10 },
+  { title: 'December', value: 11 },
+] as const;
+const yearPickerOptions = computed(() => {
+  const currentYear = new Date().getFullYear();
+  const startYear = currentYear - 10;
+  const endYear = currentYear + 15;
+  return Array.from({ length: endYear - startYear + 1 }, (_, index) => {
+    const year = startYear + index;
+    return { title: String(year), value: year };
+  });
+});
 
 const monthLabel = computed(() => displayMonth.value.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
+const eventCreatorLabel = computed(() => user.value?.first_name || 'User');
+const isCurrentDisplayMonth = computed(() => {
+  const now = new Date();
+  return displayMonth.value.getFullYear() === now.getFullYear()
+    && displayMonth.value.getMonth() === now.getMonth();
+});
 const canManageSelectedEvent = computed(() => !!selectedEvent.value && selectedEvent.value.user_id === user.value?.id);
+const customRecurrenceSummary = computed(() => recurrenceSummaryFromForm(eventForm.value));
 const dayViewEvents = computed(() => {
   if (!selectedDayDate.value) return [] as CalendarEvent[];
   return [...getEventsForDate(selectedDayDate.value)].sort((a, b) => {
@@ -321,7 +608,8 @@ const calendarCells = computed(() => {
     cells.push({ date: formatDateString(date), dayNumber: day });
   }
 
-  const trailingEmpty = 35 - cells.length;
+  const totalCells = cells.length > 35 ? 42 : 35;
+  const trailingEmpty = totalCells - cells.length;
   for (let day = 1; day <= trailingEmpty; day += 1) {
     const date = new Date(year, month + 1, day);
     cells.push({ date: formatDateString(date), dayNumber: day, otherMonth: true });
@@ -331,7 +619,10 @@ const calendarCells = computed(() => {
 });
 
 function getEventsForDate(date: string) {
-  return events.value.filter((event) => event.start === date);
+  return events.value
+    .filter((event) => eventOccursOnDate(event, date))
+    .map((event) => ({ ...event, occurrence_date: date }))
+    .sort((a, b) => parseTimeToMinutes(a.start_time) - parseTimeToMinutes(b.start_time));
 }
 
 function getVisibleEvents(date: string) {
@@ -364,7 +655,155 @@ function formatHourLabel(hour: number) {
 }
 
 function formatEventTimeRange(event: CalendarEvent) {
+  if (event.all_day) return 'All day';
   return `${formatTimeLabel(event.start_time)} - ${formatTimeLabel(event.end_time)}`;
+}
+
+function recurrenceSummaryFromForm(form: EventForm): string {
+  if (form.recurrence_type === 'none') return 'Does not repeat';
+  if (form.recurrence_type === 'daily') return 'Daily';
+  if (form.recurrence_type === 'weekly') return 'Weekly';
+  if (form.recurrence_type === 'biweekly') return 'Bi-weekly';
+  if (form.recurrence_type === 'annually') return 'Annually';
+
+  const interval = Math.max(1, Number(form.recurrence_interval || 1));
+  const unit = form.recurrence_unit;
+  const everyLabel = interval === 1 ? unit : `${interval} ${unit}s`;
+  const dayLabels = form.recurrence_unit === 'week'
+    ? weekDays
+      .filter((_, index) => form.recurrence_days_of_week.includes(index))
+      .join(', ')
+    : '';
+
+  if (form.recurrence_end_type === 'on' && form.recurrence_end_date) {
+    return `Every ${everyLabel}${dayLabels ? ` on ${dayLabels}` : ''}, until ${formatDisplayDate(form.recurrence_end_date)}`;
+  }
+
+  if (form.recurrence_end_type === 'after') {
+    return `Every ${everyLabel}${dayLabels ? ` on ${dayLabels}` : ''}, ${form.recurrence_occurrences} occurrences`;
+  }
+
+  return `Every ${everyLabel}${dayLabels ? ` on ${dayLabels}` : ''}`;
+}
+
+function recurrenceSummaryForEvent(event: CalendarEvent): string {
+  if (!event.recurrence_type || event.recurrence_type === 'none') return 'Does not repeat';
+  if (event.recurrence_type === 'daily') return 'Daily';
+  if (event.recurrence_type === 'weekly') return 'Weekly';
+  if (event.recurrence_type === 'biweekly') return 'Bi-weekly';
+  if (event.recurrence_type === 'annually') return 'Annually';
+
+  const interval = Math.max(1, Number(event.recurrence_interval || 1));
+  const unit = event.recurrence_unit || 'week';
+  const everyLabel = interval === 1 ? unit : `${interval} ${unit}s`;
+  const days = (event.recurrence_days_of_week || [])
+    .map((day) => weekDays[day])
+    .filter(Boolean)
+    .join(', ');
+
+  if (event.recurrence_end_type === 'on' && event.recurrence_end_date) {
+    return `Every ${everyLabel}${days ? ` on ${days}` : ''}, until ${formatDisplayDate(event.recurrence_end_date)}`;
+  }
+
+  if (event.recurrence_end_type === 'after' && event.recurrence_occurrences) {
+    return `Every ${everyLabel}${days ? ` on ${days}` : ''}, ${event.recurrence_occurrences} occurrences`;
+  }
+
+  return `Every ${everyLabel}${days ? ` on ${days}` : ''}`;
+}
+
+function getRecurrenceStartDatesUpTo(event: CalendarEvent, targetDate: string): string[] {
+  const type = event.recurrence_type || 'none';
+  const starts: string[] = [];
+  const firstStart = event.start;
+  const excludedStarts = new Set(event.excluded_occurrences || []);
+  let generatedCount = 0;
+
+  if (type === 'none') {
+    return [firstStart];
+  }
+
+  const interval = Math.max(1, Number(event.recurrence_interval || 1));
+  const unit = event.recurrence_unit || (
+    type === 'daily'
+      ? 'day'
+      : type === 'annually'
+        ? 'year'
+        : 'week'
+  );
+  const daysOfWeek = (event.recurrence_days_of_week || []).length > 0
+    ? (event.recurrence_days_of_week || [])
+    : [parseDateOnly(firstStart).getUTCDay()];
+  const endType = event.recurrence_end_type || 'never';
+  const endDate = event.recurrence_end_date || null;
+  const maxOccurrences = endType === 'after' ? Number(event.recurrence_occurrences || 0) : null;
+
+  const pushIfValid = (candidate: string): boolean => {
+    if (candidate > targetDate) return false;
+    if (endType === 'on' && endDate && candidate > endDate) return false;
+    if (maxOccurrences !== null && generatedCount >= maxOccurrences) return false;
+    generatedCount += 1;
+    if (!excludedStarts.has(candidate)) {
+      starts.push(candidate);
+    }
+    return true;
+  };
+
+  if (unit === 'week') {
+    let cursor = firstStart;
+    let safety = 0;
+    while (cursor <= targetDate && safety < 10000) {
+      const dayDiff = diffDays(firstStart, cursor);
+      if (dayDiff >= 0) {
+        const weekOffset = Math.floor(dayDiff / 7);
+        const weekday = parseDateOnly(cursor).getUTCDay();
+        if (weekOffset % interval === 0 && daysOfWeek.includes(weekday)) {
+          if (!pushIfValid(cursor)) break;
+        }
+      }
+      if (endType === 'on' && endDate && cursor > endDate) break;
+      if (maxOccurrences !== null && starts.length >= maxOccurrences) break;
+      cursor = addDays(cursor, 1);
+      safety += 1;
+    }
+    return starts;
+  }
+
+  let candidate = firstStart;
+  let safety = 0;
+  while (candidate <= targetDate && safety < 5000) {
+    if (!pushIfValid(candidate)) break;
+    if (maxOccurrences !== null && starts.length >= maxOccurrences) break;
+    if (unit === 'day') {
+      candidate = addDays(candidate, interval);
+    } else if (unit === 'month') {
+      candidate = addMonths(candidate, interval);
+    } else {
+      candidate = addYears(candidate, interval);
+    }
+    safety += 1;
+  }
+
+  return starts;
+}
+
+function getOccurrenceStartDateForEvent(event: CalendarEvent, targetDate: string): string | null {
+  const starts = getRecurrenceStartDatesUpTo(event, targetDate);
+  const duration = Math.max(1, diffDays(event.start, event.end) + 1);
+
+  for (let index = starts.length - 1; index >= 0; index -= 1) {
+    const occurrenceStart = starts[index];
+    const occurrenceEnd = addDays(occurrenceStart, duration - 1);
+    if (occurrenceStart <= targetDate && targetDate <= occurrenceEnd) {
+      return occurrenceStart;
+    }
+  }
+
+  return null;
+}
+
+function eventOccursOnDate(event: CalendarEvent, date: string): boolean {
+  return getOccurrenceStartDateForEvent(event, date) !== null;
 }
 
 function getTimelineEventStyle(event: CalendarEvent) {
@@ -412,6 +851,7 @@ function openCreateEventDialog(date?: string) {
   isEditingEvent.value = false;
   formError.value = '';
   eventForm.value = getDefaultEventForm(date);
+  showCustomRecurrenceDialog.value = false;
   showEventForm.value = true;
 }
 
@@ -426,7 +866,16 @@ function openEditEventDialog() {
     start_time: selectedEvent.value.start_time,
     end_time: selectedEvent.value.end_time,
     description: selectedEvent.value.description || '',
+    all_day: !!selectedEvent.value.all_day,
+    recurrence_type: selectedEvent.value.recurrence_type || 'none',
+    recurrence_interval: selectedEvent.value.recurrence_interval || 1,
+    recurrence_unit: selectedEvent.value.recurrence_unit || 'week',
+    recurrence_days_of_week: selectedEvent.value.recurrence_days_of_week || [parseDateOnly(selectedEvent.value.start).getUTCDay()],
+    recurrence_end_type: selectedEvent.value.recurrence_end_type || 'never',
+    recurrence_end_date: selectedEvent.value.recurrence_end_date || '',
+    recurrence_occurrences: selectedEvent.value.recurrence_occurrences || 13,
   };
+  showCustomRecurrenceDialog.value = false;
   showModal.value = false;
   showEventForm.value = true;
 }
@@ -440,11 +889,26 @@ async function saveEvent() {
   formError.value = '';
   savingEvent.value = true;
   try {
-    if (isEditingEvent.value && selectedEvent.value) {
-      await api.put(`/events/${selectedEvent.value.id}`, eventForm.value);
-    } else {
-      await api.post('/events', eventForm.value);
+    const payload = {
+      ...eventForm.value,
+      start_time: eventForm.value.all_day ? '00:00' : eventForm.value.start_time,
+      end_time: eventForm.value.all_day ? '23:59' : eventForm.value.end_time,
+      recurrence_end_date: eventForm.value.recurrence_end_type === 'on' ? eventForm.value.recurrence_end_date : null,
+      recurrence_occurrences: eventForm.value.recurrence_end_type === 'after' ? eventForm.value.recurrence_occurrences : null,
+      recurrence_days_of_week: eventForm.value.recurrence_unit === 'week' ? eventForm.value.recurrence_days_of_week : [],
+    };
+
+    if (payload.recurrence_type !== 'custom') {
+      payload.recurrence_end_date = null;
+      payload.recurrence_occurrences = null;
     }
+
+    if (isEditingEvent.value && selectedEvent.value) {
+      await api.put(`/events/${selectedEvent.value.id}`, payload);
+    } else {
+      await api.post('/events', payload);
+    }
+    showCustomRecurrenceDialog.value = false;
     showEventForm.value = false;
     await fetchEvents();
   } catch (error: any) {
@@ -459,10 +923,38 @@ async function saveEvent() {
 
 async function deleteSelectedEvent() {
   if (!selectedEvent.value || !canManageEvent(selectedEvent.value)) return;
+  if (selectedEvent.value.recurrence_type && selectedEvent.value.recurrence_type !== 'none') {
+    deleteScopeTarget.value = selectedEvent.value;
+    showDeleteScopeDialog.value = true;
+    return;
+  }
+
   if (!window.confirm('Delete this event?')) return;
   await api.delete(`/events/${selectedEvent.value.id}`);
   showModal.value = false;
   selectedEvent.value = null;
+  await fetchEvents();
+}
+
+async function confirmDeleteEvent(scope: 'single' | 'future' | 'series') {
+  if (!deleteScopeTarget.value) return;
+
+  const occurrenceStart = deleteScopeTarget.value.occurrence_date
+    ? getOccurrenceStartDateForEvent(deleteScopeTarget.value, deleteScopeTarget.value.occurrence_date) || deleteScopeTarget.value.start
+    : deleteScopeTarget.value.start;
+
+  await api.delete(`/events/${deleteScopeTarget.value.id}`, {
+    data: scope === 'series'
+      ? {}
+      : {
+          scope,
+          occurrence_start: occurrenceStart,
+        },
+  });
+  showDeleteScopeDialog.value = false;
+  showModal.value = false;
+  selectedEvent.value = null;
+  deleteScopeTarget.value = null;
   await fetchEvents();
 }
 
@@ -485,6 +977,57 @@ function nextMonth() {
   displayMonth.value = new Date(displayMonth.value.getFullYear(), displayMonth.value.getMonth() + 1, 1);
 }
 
+function goToCurrentMonth() {
+  const now = new Date();
+  displayMonth.value = new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
+function openMonthYearDialog() {
+  pickerMonth.value = displayMonth.value.getMonth();
+  pickerYear.value = displayMonth.value.getFullYear();
+  showMonthYearDialog.value = true;
+}
+
+function applyMonthYearSelection() {
+  displayMonth.value = new Date(pickerYear.value, pickerMonth.value, 1);
+  showMonthYearDialog.value = false;
+}
+
+function handleRecurrenceTypeChange(value: EventForm['recurrence_type']) {
+  if (value === 'custom') {
+    if (eventForm.value.recurrence_unit === 'week' && eventForm.value.recurrence_days_of_week.length === 0) {
+      eventForm.value.recurrence_days_of_week = [parseDateOnly(eventForm.value.start).getUTCDay()];
+    }
+    showCustomRecurrenceDialog.value = true;
+  } else {
+    showCustomRecurrenceDialog.value = false;
+  }
+}
+
+function toggleCustomWeekday(day: number) {
+  const selected = eventForm.value.recurrence_days_of_week;
+  if (selected.includes(day)) {
+    const next = selected.filter((value) => value !== day);
+    if (next.length > 0) {
+      eventForm.value.recurrence_days_of_week = next;
+    }
+    return;
+  }
+
+  eventForm.value.recurrence_days_of_week = [...selected, day].sort((a, b) => a - b);
+}
+
+function handleCustomUnitChange() {
+  if (eventForm.value.recurrence_unit !== 'week') {
+    eventForm.value.recurrence_days_of_week = [];
+    return;
+  }
+
+  if (eventForm.value.recurrence_days_of_week.length === 0) {
+    eventForm.value.recurrence_days_of_week = [parseDateOnly(eventForm.value.start).getUTCDay()];
+  }
+}
+
 onMounted(async () => {
   await fetchEvents();
 });
@@ -495,11 +1038,34 @@ onMounted(async () => {
    display: flex;
    align-items: center;
    justify-content: space-between;
-   margin-bottom: 12px;
+   margin-bottom: 10px;
 }
 
 .month-title {
   font-weight: 700;
+}
+
+.month-picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.month-picker-trigger:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.month-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .title-row {
@@ -509,13 +1075,17 @@ onMounted(async () => {
   gap: 12px;
 }
 
+.calendar-title-row {
+  padding: 10px 10px 8px;
+}
+
 .action-btn {
   text-transform: none;
   border-radius: 12px !important;
   padding-inline: 10px;
   min-height: 30px;
-  background-color: var(--color-primary) !important;
-  color: var(--color-text) !important;
+  background-color: var(--app-button-bg) !important;
+  color: var(--app-button-text) !important;
 }
 
 .action-btn :global(.v-btn__content) {
@@ -528,8 +1098,33 @@ onMounted(async () => {
   border-radius: 12px;
 }
 
+.calendar-nav-btn {
+  color: var(--color-text) !important;
+}
+
+.calendar-nav-btn :global(.v-btn__content) {
+  font-weight: 700;
+  color: var(--color-text) !important;
+}
+
+.today-month-btn {
+  min-width: 30px;
+  width: 30px;
+  padding-inline: 0;
+}
+
+.today-month-btn:disabled {
+  opacity: 0.45;
+}
+
 .day-title-row {
   font-size: 18px;
+}
+
+.month-year-dialog-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 
 /* Input fields styling */
@@ -541,11 +1136,27 @@ onMounted(async () => {
   background-color: #ffffff !important;
 }
 
+.calendar-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+}
+
+.calendar-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 8px 10px 10px;
+  gap: 2px;
+}
+
 .weekday-row {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
-  margin-bottom: 6px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .weekday-cell {
@@ -558,15 +1169,27 @@ onMounted(async () => {
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-rows: repeat(6, minmax(94px, 1fr));
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .calendar-cell {
-   min-height: 150px;
+   min-height: 0;
    border: 1px solid #dbe4f0;
-   border-radius: 8px;
-   padding: 6px;
+   border-radius: 10px;
+   padding: 8px;
    background: #f8fbff;
+   overflow: hidden;
+}
+
+.calendar-grid .calendar-cell:nth-child(29) {
+  border-bottom-left-radius: 18px;
+}
+
+.calendar-grid .calendar-cell:nth-child(35) {
+  border-bottom-right-radius: 18px;
 }
 
 .calendar-cell.empty {
@@ -589,6 +1212,11 @@ onMounted(async () => {
 
 .calendar-cell.other-month .event-item {
   opacity: 0.5;
+}
+
+.helper-copy {
+  margin: 0;
+  color: #64748b;
 }
 
 .date-label {
@@ -626,10 +1254,25 @@ onMounted(async () => {
 }
 
 .event-color-preview {
-   width: 40px;
+   width: fit-content;
+   min-width: 40px;
    height: 40px;
    border-radius: 8px;
    margin-top: 12px;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   padding: 4px 10px;
+   box-sizing: border-box;
+}
+
+.event-color-preview-name {
+  color: #ffffff;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .day-timeline-wrapper {
@@ -700,7 +1343,169 @@ onMounted(async () => {
 .time-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.time-controls-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+  min-height: 48px;
+  margin: 2px 0 10px;
+}
+
+.all-day-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.all-day-checkbox-input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  appearance: none;
+  border: 1.5px solid #ffffff;
+  border-radius: 4px;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 1px #94a3b8;
+  position: relative;
+  cursor: pointer;
+}
+
+.all-day-checkbox-input:checked {
+  background-color: var(--color-primary);
+  border-color: #ffffff;
+}
+
+.all-day-checkbox-input:checked::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 11px;
+  border: solid #ffffff;
+  border-width: 0 2px 2px 0;
+  transform: translate(-50%, -58%) rotate(45deg);
+}
+
+.all-day-checkbox-label {
+  font-size: 14px;
+  color: #334155;
+}
+
+.time-field :deep(.v-field__input) {
+  min-height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.time-field :deep(.v-field--disabled) {
+  background-color: #e5e7eb !important;
+  opacity: 1 !important;
+}
+
+.time-field :deep(.v-field--disabled input) {
+  color: #6b7280 !important;
+}
+
+.date-field :deep(.v-field__input) {
+  display: flex !important;
+  align-items: center !important;
+}
+
+.date-field :deep(input[type='date']),
+.time-field :deep(input[type='time']) {
+  line-height: 1.2;
+}
+
+.custom-recurrence-inline {
+  margin: 0 0 12px;
+}
+
+.custom-recurrence-summary {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+}
+
+.custom-recurrence-card {
+  border-radius: 20px;
+  background-color: var(--app-modal-bg) !important;
+}
+
+.custom-row {
+  display: grid;
+  grid-template-columns: auto 96px 132px;
   gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.custom-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #334155;
+}
+
+.custom-interval-field :deep(.v-field),
+.custom-unit-field :deep(.v-field),
+.custom-end-field :deep(.v-field) {
+  background-color: #ffffff !important;
+}
+
+.repeat-on-section {
+  margin-bottom: 12px;
+}
+
+.weekday-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.weekday-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.weekday-circle.active {
+  border-color: #93c5fd;
+  background: #bfdbfe;
+  color: #1e3a8a;
+}
+
+.ends-section {
+  margin-top: 6px;
+}
+
+.custom-end-field {
+  margin: 4px 0 0 30px;
+  max-width: 210px;
+}
+
+:global(.event-select-menu .v-list) {
+  background-color: #ffffff !important;
+}
+
+:global(.event-select-menu .v-list-item) {
+  background-color: #ffffff !important;
+}
+
+:global(.event-select-menu .v-list-item:hover) {
+  background-color: #f8fafc !important;
 }
 
 .no-events {
@@ -747,6 +1552,14 @@ onMounted(async () => {
 
 /* Mobile responsive styles */
 @media (max-width: 768px) {
+   .calendar-title-row {
+     padding-inline: 8px;
+   }
+
+   .calendar-body {
+     padding: 6px 8px 8px;
+   }
+
    .calendar-header {
      margin-bottom: 8px;
    }
@@ -756,8 +1569,8 @@ onMounted(async () => {
    }
 
    .weekday-row {
-     gap: 2px;
-     margin-bottom: 4px;
+     gap: 4px;
+     margin-bottom: 6px;
    }
 
    .weekday-cell {
@@ -765,15 +1578,12 @@ onMounted(async () => {
    }
 
    .calendar-grid {
-     gap: 2px;
-     grid-auto-rows: 80px;
+     gap: 4px;
+     grid-template-rows: repeat(6, minmax(78px, 1fr));
    }
 
    .calendar-cell {
-     min-height: unset;
-     height: 80px;
-     overflow: hidden;
-     padding: 3px;
+     padding: 6px 4px;
      border-radius: 4px;
    }
 
@@ -839,6 +1649,14 @@ onMounted(async () => {
 }
 
 @media (max-width: 480px) {
+   .calendar-title-row {
+     padding-inline: 6px;
+   }
+
+   .calendar-body {
+     padding: 6px 6px 8px;
+   }
+
    .calendar-header {
      margin-bottom: 6px;
    }
@@ -848,8 +1666,8 @@ onMounted(async () => {
    }
 
    .weekday-row {
-     gap: 1px;
-     margin-bottom: 2px;
+     gap: 3px;
+     margin-bottom: 5px;
    }
 
    .weekday-cell {
@@ -857,15 +1675,11 @@ onMounted(async () => {
    }
 
    .calendar-grid {
-     gap: 1px;
-     grid-auto-rows: 60px;
+     gap: 3px;
    }
 
    .calendar-cell {
-     min-height: unset;
-     height: 60px;
-     overflow: hidden;
-     padding: 2px;
+     padding: 4px 3px;
      border-radius: 3px;
    }
 
@@ -935,9 +1749,3 @@ onMounted(async () => {
    }
 }
 </style>
-
-
-
-
-
-

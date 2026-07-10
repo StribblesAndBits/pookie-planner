@@ -198,7 +198,9 @@ async function handleRegister() {
     await router.push('/dashboard');
   } catch (err: any) {
     const errors = err?.response?.data?.errors;
-    const firstError = errors ? Object.values(errors).flat()[0] as string : 'Registration failed. Please try again.';
+    const firstError = errors
+      ? Object.values(errors).flat()[0] as string
+      : (err?.response ? 'Registration failed. Please try again.' : 'Unable to reach the server. Start the API and try again.');
     const toast = await toastController.create({
       message: firstError,
       duration: 2000,
@@ -270,8 +272,8 @@ async function handleRegister() {
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 24px;
-  background-color: var(--color-primary) !important;
-  color: var(--color-text) !important;
+  background-color: var(--app-button-bg) !important;
+  color: var(--app-button-text) !important;
 }
 
 .color-selection-wrapper {
@@ -360,4 +362,3 @@ async function handleRegister() {
   color: var(--color-text);
 }
 </style>
-

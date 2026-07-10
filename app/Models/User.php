@@ -58,6 +58,11 @@ class User extends Authenticatable
         return $this->hasMany(Event::class);
     }
 
+    public function julesDays(): HasMany
+    {
+        return $this->hasMany(JulesDay::class);
+    }
+
     public static function availableColorPreferences(?int $ignoringUserId = null): array
     {
         $query = static::query()->whereNotNull('color_preference');

@@ -3,5 +3,8 @@
   "scripts": {
     "mobile": "cd mobile && ionic serve",
     "api": "php artisan serve"
+  },
+  "dependencies": {
+    "@capacitor/ios": "^8.4.1"
   }
 }

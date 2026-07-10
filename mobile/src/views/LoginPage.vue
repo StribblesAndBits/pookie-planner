@@ -93,7 +93,8 @@ async function handleLogin() {
     await login({ email: email.value, password: password.value });
     await router.push('/dashboard');
   } catch (err: any) {
-    const message = err?.response?.data?.message ?? 'Invalid email or password.';
+    const message = err?.response?.data?.message
+      ?? (err?.response ? 'Invalid email or password.' : 'Unable to reach the server. Start the API and try again.');
     const toast = await toastController.create({
       message,
       duration: 2000,
@@ -183,8 +184,8 @@ async function handleLogin() {
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 24px;
-  background-color: var(--color-primary) !important;
-  color: var(--color-text) !important;
+  background-color: var(--app-button-bg) !important;
+  color: var(--app-button-text) !important;
 }
 
 .switch-auth {
@@ -193,4 +194,3 @@ async function handleLogin() {
   color: var(--color-text);
 }
 </style>
-

@@ -11,7 +11,7 @@
 
       <!-- User menu (right) -->
       <v-spacer />
-      <v-menu v-model="isOpen" :close-on-content-click="true">
+      <v-menu v-model="isOpen" :close-on-content-click="true" content-class="navbar-user-menu">
         <template v-slot:activator="{ props }">
           <button
             v-bind="props"
@@ -21,6 +21,12 @@
           </button>
         </template>
         <v-list>
+          <v-list-item @click="goToUtilities">
+            <v-list-item-title>Utilities</v-list-item-title>
+          </v-list-item>
+          <v-list-item @click="goToJules">
+            <v-list-item-title>Jules</v-list-item-title>
+          </v-list-item>
           <v-list-item @click="goToProfile">
             <v-list-item-title>Profile</v-list-item-title>
           </v-list-item>
@@ -63,6 +69,8 @@ const pageTitle = computed(() => {
    const routeName = route.name as string | undefined;
    if (routeName === 'Dashboard') return 'Dashboard';
    if (routeName === 'Profile') return 'Profile';
+   if (routeName === 'Utilities') return 'Utilities';
+   if (routeName === 'Jules') return 'Jules Tracker';
    return 'Dashboard';
 });
 
@@ -84,6 +92,16 @@ function goToProfile() {
    router.push('/profile');
 }
 
+function goToUtilities() {
+   isOpen.value = false;
+   router.push('/utilities');
+}
+
+function goToJules() {
+   isOpen.value = false;
+   router.push('/jules');
+}
+
 async function handleLogout() {
    isLoggingOut.value = true;
    isOpen.value = false;
@@ -101,7 +119,9 @@ async function handleLogout() {
   position: sticky;
   top: 0;
   z-index: 100;
-    height: 65px;
+  height: 65px;
+  --app-button-bg: var(--color-primary);
+  --app-button-text: var(--color-text);
 }
 
 .navbar-content {
@@ -156,8 +176,6 @@ async function handleLogout() {
   font-size: 16px;
   border-radius: 50%;
   border: none;
-  background-color: var(--color-primary);
-  color: var(--color-text);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -169,5 +187,16 @@ async function handleLogout() {
 .initials-button:hover {
   background-color: var(--color-secondary);
 }
-</style>
 
+:global(.navbar-user-menu .v-list) {
+  background-color: #ffffff !important;
+}
+
+:global(.navbar-user-menu .v-list-item) {
+  background-color: #ffffff !important;
+}
+
+:global(.navbar-user-menu .v-list-item:hover) {
+  background-color: #f8fafc !important;
+}
+</style>

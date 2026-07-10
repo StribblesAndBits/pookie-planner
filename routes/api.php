@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\JulesDayController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\UtilityController;
 use Illuminate\Support\Facades\Route;
 
 // Public auth routes
@@ -25,5 +27,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/events', [EventController::class, 'store']);
     Route::put('/events/{id}', [EventController::class, 'update']);
     Route::delete('/events/{id}', [EventController::class, 'destroy']);
-});
 
+    // Jules days
+    Route::get('/jules-days', [JulesDayController::class, 'index']);
+    Route::post('/jules-days', [JulesDayController::class, 'store']);
+    Route::put('/jules-days/{id}', [JulesDayController::class, 'update']);
+    Route::delete('/jules-days/{id}', [JulesDayController::class, 'destroy']);
+
+    // Utilities
+    Route::get('/utilities', [UtilityController::class, 'index']);
+    Route::post('/utilities', [UtilityController::class, 'store']);
+    Route::put('/utilities/{id}', [UtilityController::class, 'update']);
+});
