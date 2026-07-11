@@ -80,7 +80,7 @@
           <template v-if="cell.date">
             <div class="date-row">
               <span class="date-label">{{ cell.dayNumber }}</span>
-              <span v-if="hasJulesDay(cell.date)" class="jules-marker">J</span>
+              <span v-if="getJulesMarker(cell.date)" class="jules-marker" :class="getJulesMarker(cell.date)?.class">{{ getJulesMarker(cell.date)?.label }}</span>
             </div>
 
             <div
@@ -360,6 +360,7 @@ type CalendarCell = {
 };
 
 type JulesDayRecord = {
+  title: string;
   start: string;
   end: string;
   recurrence_type?: 'none' | 'daily' | 'weekly' | 'biweekly' | 'annually' | 'custom';
@@ -669,8 +670,13 @@ function getHiddenEventCount(date: string) {
   return total > 3 ? total - 2 : 0;
 }
 
-function hasJulesDay(date: string) {
-  return props.julesDays.some((day) => occursOnDate(day, date));
+function getJulesMarker(date: string) {
+  const day = props.julesDays.find((item) => occursOnDate(item, date));
+  if (!day) return null;
+  if (day.title === 'No Jules Day') {
+    return { label: 'J', class: 'jules-marker--no-jules' };
+  }
+  return { label: 'J', class: 'jules-marker--jules' };
 }
 
 function parseTimeToMinutes(time: string) {
@@ -1281,11 +1287,15 @@ onMounted(async () => {
   height: 16px;
   margin-left: auto;
   border-radius: 999px;
-  background: #000000;
+  background: #16a34a;
   color: #ffffff;
   font-weight: 900;
   font-size: 10px;
   line-height: 1;
+}
+
+.jules-marker--no-jules {
+  background: #dc2626;
 }
 
 .event-item {

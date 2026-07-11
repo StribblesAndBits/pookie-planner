@@ -79,7 +79,7 @@
           <template v-if="cell.date">
             <div class="date-row">
               <span class="date-label">{{ cell.dayNumber }}</span>
-              <span v-if="hasJulesDay(cell.date)" class="jules-marker">J</span>
+              <span v-if="getJulesMarker(cell.date)" class="jules-marker" :class="getJulesMarker(cell.date)?.class">{{ getJulesMarker(cell.date)?.label }}</span>
             </div>
           </template>
         </div>
@@ -101,7 +101,7 @@
                   <span class="jules-occurrence-meta">{{ formatOccurrenceRange(day) }}</span>
                 </div>
                 <div class="jules-occurrence-actions">
-                  <span class="jules-occurrence-badge">J</span>
+                  <span class="jules-occurrence-badge" :class="getJulesMarker(day.title)?.class">{{ getJulesMarker(day.title)?.label }}</span>
                   <v-btn color="error" variant="text" size="x-small" @click.stop="requestDeleteJulesDay(day)">Delete</v-btn>
                 </div>
               </div>
@@ -116,115 +116,15 @@
           </v-card-actions>
         </v-card>
       </v-dialog>
-
-      <v-dialog v-model="showJulesForm" max-width="540px">
-        <v-card class="app-modal-card">
-          <v-card-title>{{ isEditingJulesDay ? 'Edit Jules Day' : 'New Jules Day' }}</v-card-title>
-          <v-card-text>
-            <v-text-field v-model="julesForm.title" label="Title" density="comfortable" />
-            <DatePickerField v-model="julesForm.start" label="Start date" density="comfortable" class="date-field" />
-            <DatePickerField v-model="julesForm.end" label="End date" density="comfortable" class="date-field" />
-            <v-select
-              v-model="julesForm.recurrence_type"
-              label="Repeat"
-              density="comfortable"
-              :items="recurrenceOptions"
-              item-title="title"
-              item-value="value"
-              :menu-props="{ contentClass: 'event-select-menu' }"
-              @update:model-value="handleRecurrenceTypeChange"
-            />
-            <div v-if="julesForm.recurrence_type === 'custom'" class="custom-recurrence-inline">
-              <p class="custom-recurrence-summary">{{ customRecurrenceSummary }}</p>
-            </div>
-            <v-textarea v-model="julesForm.description" label="Notes" rows="3" density="comfortable" />
-            <p v-if="formError" class="form-error">{{ formError }}</p>
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer />
-            <v-btn color="primary" class="action-btn" size="x-small" density="comfortable" rounded="lg" @click="showJulesForm = false">Cancel</v-btn>
-            <v-btn color="primary" class="action-btn" size="x-small" density="comfortable" rounded="lg" :loading="savingJulesDay" @click="saveJulesDay">Save</v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
-
-      <v-dialog v-model="showCustomRecurrenceDialog" max-width="460px">
-        <v-card class="custom-recurrence-card app-modal-card">
-          <v-card-title>Custom recurrence</v-card-title>
-          <v-card-text>
-            <div class="custom-row">
-              <span class="custom-label">Repeat every</span>
-              <v-text-field
-                v-model.number="julesForm.recurrence_interval"
-                type="number"
-                min="1"
-                max="999"
-                density="comfortable"
-                hide-details
-                class="custom-interval-field number-spinner-field"
-              />
-              <v-select
-                v-model="julesForm.recurrence_unit"
-                density="comfortable"
-                hide-details
-                :items="customRecurrenceUnits"
-                item-title="title"
-                item-value="value"
-                :menu-props="{ contentClass: 'event-select-menu' }"
-                class="custom-unit-field"
-                @update:model-value="handleCustomUnitChange"
-              />
-            </div>
-
-            <div v-if="julesForm.recurrence_unit === 'week'" class="repeat-on-section">
-              <div class="custom-label">Repeat on</div>
-              <div class="weekday-picker">
-                <button
-                  v-for="day in weekdayOptions"
-                  :key="day.value"
-                  type="button"
-                  class="weekday-circle"
-                  :class="{ active: julesForm.recurrence_days_of_week.includes(day.value) }"
-                  @click="toggleCustomWeekday(day.value)"
-                >
-                  {{ day.label }}
-                </button>
-              </div>
-            </div>
-
-            <div class="ends-section">
-              <div class="custom-label">Ends</div>
-              <v-radio-group v-model="julesForm.recurrence_end_type" density="comfortable" hide-details>
-                <v-radio label="Never" value="never" />
-                <v-radio label="On" value="on" />
-                <DatePickerField
-                  v-if="julesForm.recurrence_end_type === 'on'"
-                  v-model="julesForm.recurrence_end_date"
-                  label="End date"
-                  density="comfortable"
-                  class="custom-end-field"
-                />
-                <v-radio label="After" value="after" />
-                <v-text-field
-                  v-if="julesForm.recurrence_end_type === 'after'"
-                  v-model.number="julesForm.recurrence_occurrences"
-                  type="number"
-                  min="1"
-                  max="9999"
-                  density="comfortable"
-                  class="custom-end-field number-spinner-field"
-                  suffix="occurrences"
-                />
-              </v-radio-group>
-            </div>
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer />
-            <v-btn color="primary" class="action-btn" size="x-small" density="comfortable" rounded="lg" @click="showCustomRecurrenceDialog = false">Cancel</v-btn>
-            <v-btn color="primary" class="action-btn" size="x-small" density="comfortable" rounded="lg" @click="showCustomRecurrenceDialog = false">Done</v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
+      <JulesDayDialog
+        v-model="showJulesForm"
+        :form="julesForm"
+        :is-editing="isEditingJulesDay"
+        :saving="savingJulesDay"
+        :error="formError"
+        :show-custom-recurrence-button="false"
+        @save="saveJulesDay"
+      />
 
       <v-dialog v-model="showDeleteScopeDialog" max-width="420px">
         <v-card class="app-modal-card">
@@ -246,21 +146,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import {
-  VCard,
-  VCardTitle,
-  VCardText,
-  VCardActions,
-  VDialog,
-  VBtn,
-  VSpacer,
-  VTextField,
-  VTextarea,
-  VSelect,
-  VRadioGroup,
-  VRadio,
-} from 'vuetify/components';
-import DatePickerField from '@/components/DatePickerField.vue';
+import { VCard, VCardTitle, VCardText, VCardActions, VDialog, VBtn, VSpacer, VSelect } from 'vuetify/components';
+import JulesDayDialog from '@/components/JulesDayDialog.vue';
 import api from '@/services/api';
 import {
   addDays,
@@ -269,7 +156,6 @@ import {
   formatDisplayDate,
   getOccurrenceStartDate,
   occursOnDate,
-  recurrenceSummary,
   weekDays,
 } from '@/utils/recurrence';
 
@@ -311,7 +197,6 @@ type JulesDayForm = {
 const showMonthYearDialog = ref(false);
 const showDayModal = ref(false);
 const showJulesForm = ref(false);
-const showCustomRecurrenceDialog = ref(false);
 const showDeleteScopeDialog = ref(false);
 const isEditingJulesDay = ref(false);
 const savingJulesDay = ref(false);
@@ -327,21 +212,6 @@ const pickerMonth = ref(displayMonth.value.getMonth());
 const pickerYear = ref(displayMonth.value.getFullYear());
 const todayDate = formatDateString(new Date());
 
-const weekdayOptions = weekDays.map((label, value) => ({ label: label.slice(0, 1), value }));
-const recurrenceOptions = [
-  { title: 'Does not repeat', value: 'none' },
-  { title: 'Daily', value: 'daily' },
-  { title: 'Weekly', value: 'weekly' },
-  { title: 'Bi-weekly', value: 'biweekly' },
-  { title: 'Annually', value: 'annually' },
-  { title: 'Custom...', value: 'custom' },
-] as const;
-const customRecurrenceUnits = [
-  { title: 'day', value: 'day' },
-  { title: 'week', value: 'week' },
-  { title: 'month', value: 'month' },
-  { title: 'year', value: 'year' },
-] as const;
 const monthPickerOptions = [
   { title: 'January', value: 0 },
   { title: 'February', value: 1 },
@@ -372,7 +242,6 @@ const isCurrentDisplayMonth = computed(() => {
   return displayMonth.value.getFullYear() === now.getFullYear()
     && displayMonth.value.getMonth() === now.getMonth();
 });
-const customRecurrenceSummary = computed(() => recurrenceSummary(julesForm.value));
 
 const calendarRowCount = computed(() => calendarCells.value.length / 7);
 
@@ -451,8 +320,22 @@ function friendlyJulesLoadError(error: any) {
   return message || 'Unable to load Jules Days.';
 }
 
-function hasJulesDay(date: string): boolean {
-  return julesDays.value.some((day) => occursOnDate(day, date));
+function getJulesMarker(titleOrDate: string) {
+  if (titleOrDate === 'No Jules Day') {
+    return { label: 'J', class: 'jules-marker--no-jules' };
+  }
+  if (titleOrDate === 'Jules Day') {
+    return { label: 'J', class: 'jules-marker--jules' };
+  }
+
+  const day = julesDays.value.find((item) => occursOnDate(item, titleOrDate));
+  if (!day) {
+    return null;
+  }
+
+  return day.title === 'No Jules Day'
+    ? { label: 'J', class: 'jules-marker--no-jules' }
+    : { label: 'J', class: 'jules-marker--jules' };
 }
 
 function openMonthYearDialog() {
@@ -495,7 +378,6 @@ function openCreateJulesDayDialog(date?: string) {
   isEditingJulesDay.value = false;
   selectedOccurrence.value = null;
   formError.value = '';
-  showCustomRecurrenceDialog.value = false;
   julesForm.value = getDefaultJulesForm(date || selectedDayDate.value || undefined);
   showJulesForm.value = true;
 }
@@ -504,7 +386,6 @@ function openEditJulesDayDialog(day: JulesDayOccurrence) {
   isEditingJulesDay.value = true;
   selectedOccurrence.value = day;
   formError.value = '';
-  showCustomRecurrenceDialog.value = false;
   julesForm.value = {
     title: day.title,
     start: day.start,
@@ -519,37 +400,6 @@ function openEditJulesDayDialog(day: JulesDayOccurrence) {
     recurrence_occurrences: day.recurrence_occurrences || 13,
   };
   showJulesForm.value = true;
-}
-
-function handleRecurrenceTypeChange(value: JulesDayForm['recurrence_type']) {
-  if (value === 'custom' && julesForm.value.recurrence_unit === 'week' && julesForm.value.recurrence_days_of_week.length === 0) {
-    julesForm.value.recurrence_days_of_week = [new Date(`${julesForm.value.start}T00:00:00`).getDay()];
-  }
-  showCustomRecurrenceDialog.value = value === 'custom';
-}
-
-function toggleCustomWeekday(day: number) {
-  const selected = julesForm.value.recurrence_days_of_week;
-  if (selected.includes(day)) {
-    const next = selected.filter((value) => value !== day);
-    if (next.length > 0) {
-      julesForm.value.recurrence_days_of_week = next;
-    }
-    return;
-  }
-
-  julesForm.value.recurrence_days_of_week = [...selected, day].sort((a, b) => a - b);
-}
-
-function handleCustomUnitChange() {
-  if (julesForm.value.recurrence_unit !== 'week') {
-    julesForm.value.recurrence_days_of_week = [];
-    return;
-  }
-
-  if (julesForm.value.recurrence_days_of_week.length === 0) {
-    julesForm.value.recurrence_days_of_week = [new Date(`${julesForm.value.start}T00:00:00`).getDay()];
-  }
 }
 
 async function loadJulesDays() {
@@ -804,9 +654,22 @@ onMounted(async () => {
 }
 
 .jules-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #ffffff;
   font-weight: 900;
-  color: #000000;
+  font-size: 10px;
   line-height: 1;
+}
+
+.jules-marker--no-jules {
+  background: #dc2626;
 }
 
 .day-title-row {
@@ -857,9 +720,14 @@ onMounted(async () => {
   width: 24px;
   height: 24px;
   border-radius: 999px;
-  background: #000000;
+  background: #16a34a;
   color: #ffffff;
   font-weight: 900;
+  font-size: 12px;
+}
+
+.jules-occurrence-badge.jules-marker--no-jules {
+  background: #dc2626;
 }
 
 .day-view-actions {
