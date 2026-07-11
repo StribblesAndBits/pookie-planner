@@ -86,7 +86,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { IonPage } from '@ionic/vue';
+import { IonPage, onIonViewWillEnter } from '@ionic/vue';
 import { VCard, VCardTitle, VCardText, VBtn, VDialog, VTextField, VSelect, VCardActions, VSpacer } from 'vuetify/components';
 import Navbar from '@/components/Navbar.vue';
 import DatePickerField from '@/components/DatePickerField.vue';
@@ -216,6 +216,10 @@ async function markPaid(utilityId: number) {
 }
 
 onMounted(async () => {
+  await loadUtilities();
+});
+
+onIonViewWillEnter(async () => {
   await loadUtilities();
 });
 </script>

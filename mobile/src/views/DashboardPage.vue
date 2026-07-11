@@ -5,7 +5,7 @@
     <div class="dashboard-content">
       <div class="dashboard-container">
         <div class="calendar-section">
-          <CalendarCard :jules-days="julesDays" />
+          <CalendarCard ref="calendarCardRef" :jules-days="julesDays" />
         </div>
 
         <v-card class="utilities-summary-card">
@@ -132,6 +132,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { onIonViewWillEnter } from '@ionic/vue';
 import { IonPage } from '@ionic/vue';
 import { useRouter } from 'vue-router';
 import { VCard, VCardTitle, VCardText, VBtn, VDialog, VTextField, VSelect, VCardActions, VSpacer } from 'vuetify/components';
@@ -192,6 +193,7 @@ type JulesDayForm = {
 };
 
 const router = useRouter();
+const calendarCardRef = ref<InstanceType<typeof CalendarCard> | null>(null);
 const utilities = ref<UtilityItem[]>([]);
 const loadingUtilities = ref(false);
 const utilitiesError = ref('');
@@ -428,6 +430,12 @@ async function saveJulesDay() {
 onMounted(async () => {
   await loadUtilities();
   await loadJulesDays();
+});
+
+onIonViewWillEnter(async () => {
+  await loadUtilities();
+  await loadJulesDays();
+  calendarCardRef.value?.refresh();
 });
 </script>
 

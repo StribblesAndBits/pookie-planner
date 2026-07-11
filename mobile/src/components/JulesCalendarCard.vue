@@ -102,7 +102,7 @@
                 </div>
                 <div class="jules-occurrence-actions">
                   <span class="jules-occurrence-badge" :class="getJulesMarker(day.title)?.class">{{ getJulesMarker(day.title)?.label }}</span>
-                  <v-btn color="error" variant="text" size="x-small" @click.stop="requestDeleteJulesDay(day)">Delete</v-btn>
+                  <v-btn class="action-btn" size="x-small" density="comfortable" rounded="lg" @click.stop="requestDeleteJulesDay(day)">Delete</v-btn>
                 </div>
               </div>
             </template>
@@ -486,6 +486,8 @@ async function confirmDeleteJulesDay(scope: 'single' | 'future' | 'series') {
 onMounted(async () => {
   await loadJulesDays();
 });
+
+defineExpose({ refresh: loadJulesDays });
 </script>
 
 <style scoped>

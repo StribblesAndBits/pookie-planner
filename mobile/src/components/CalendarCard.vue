@@ -148,19 +148,21 @@
         <v-card v-if="selectedEvent" class="event-popover-card app-modal-card">
           <v-card-title>{{ selectedEvent.title }}</v-card-title>
           <v-card-text>
-          <p><strong>Date:</strong> {{ formatDisplayDate(selectedEvent.occurrence_date || selectedEvent.start) }}</p>
-            <p><strong>Time:</strong> {{ formatEventTimeRange(selectedEvent) }}</p>
-          <p v-if="selectedEvent.recurrence_type && selectedEvent.recurrence_type !== 'none'">
-            <strong>Repeats:</strong> {{ recurrenceSummaryForEvent(selectedEvent) }}
-          </p>
-          <p v-if="selectedEvent.description"><strong>Description:</strong> {{ selectedEvent.description }}</p>
-          <div class="event-color-preview" :style="{ backgroundColor: getColorValue(getCurrentUserColor()) }">
-            <span class="event-color-preview-name">{{ eventCreatorLabel }}</span>
-          </div>
-        </v-card-text>
+            <div class="event-detail-panel">
+              <p><strong>Date:</strong> {{ formatDisplayDate(selectedEvent.occurrence_date || selectedEvent.start) }}</p>
+              <p><strong>Time:</strong> {{ formatEventTimeRange(selectedEvent) }}</p>
+              <p v-if="selectedEvent.recurrence_type && selectedEvent.recurrence_type !== 'none'">
+                <strong>Repeats:</strong> {{ recurrenceSummaryForEvent(selectedEvent) }}
+              </p>
+              <p v-if="selectedEvent.description"><strong>Description:</strong> {{ selectedEvent.description }}</p>
+              <div class="event-color-preview" :style="{ backgroundColor: getColorValue(getCurrentUserColor()) }">
+                <span class="event-color-preview-name">{{ eventCreatorLabel }}</span>
+              </div>
+            </div>
+          </v-card-text>
           <v-card-actions>
-            <v-btn v-if="canManageSelectedEvent" color="primary" variant="text" @click="openEditEventDialog">Edit</v-btn>
-            <v-btn v-if="canManageSelectedEvent" color="error" variant="text" @click="deleteSelectedEvent">Delete</v-btn>
+            <v-btn v-if="canManageSelectedEvent" class="action-btn" size="x-small" density="comfortable" rounded="lg" @click="openEditEventDialog">Edit</v-btn>
+            <v-btn v-if="canManageSelectedEvent" class="action-btn" size="x-small" density="comfortable" rounded="lg" @click="deleteSelectedEvent">Delete</v-btn>
             <v-spacer />
             <v-btn color="primary" class="action-btn" size="x-small" density="comfortable" rounded="lg" @click="closeEventPopover">Close</v-btn>
           </v-card-actions>
@@ -930,6 +932,8 @@ async function fetchEvents() {
   events.value = data;
 }
 
+defineExpose({ refresh: fetchEvents });
+
 async function saveEvent() {
   formError.value = '';
   savingEvent.value = true;
@@ -1344,6 +1348,19 @@ onMounted(async () => {
   font-weight: 700;
   text-align: center;
   white-space: nowrap;
+}
+
+.event-detail-panel {
+  display: grid;
+  gap: 8px;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: inset 0 0 0 1px #dbe4f0;
+}
+
+.event-detail-panel p {
+  margin: 0;
 }
 
 .day-timeline-wrapper {

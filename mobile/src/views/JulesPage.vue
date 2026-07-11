@@ -5,7 +5,7 @@
     <div class="dashboard-content">
       <div class="dashboard-container">
         <div class="calendar-section">
-          <JulesCalendarCard />
+          <JulesCalendarCard ref="julesCalendarCardRef" />
         </div>
       </div>
     </div>
@@ -13,9 +13,16 @@
 </template>
 
 <script setup lang="ts">
-import { IonPage } from '@ionic/vue';
+import { ref } from 'vue';
+import { IonPage, onIonViewWillEnter } from '@ionic/vue';
 import Navbar from '@/components/Navbar.vue';
 import JulesCalendarCard from '@/components/JulesCalendarCard.vue';
+
+const julesCalendarCardRef = ref<InstanceType<typeof JulesCalendarCard> | null>(null);
+
+onIonViewWillEnter(() => {
+  julesCalendarCardRef.value?.refresh();
+});
 </script>
 
 <style scoped>
