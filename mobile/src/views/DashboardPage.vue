@@ -124,6 +124,7 @@
       :saving="savingJulesDay"
       :error="julesFormError"
       :show-custom-recurrence-button="true"
+      :existing-jules-days="julesDays"
       @save="saveJulesDay"
     />
 

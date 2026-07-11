@@ -123,6 +123,8 @@
         :saving="savingJulesDay"
         :error="formError"
         :show-custom-recurrence-button="false"
+        :existing-jules-days="julesDays"
+        :current-jules-day-id="selectedOccurrence?.id ?? null"
         @save="saveJulesDay"
       />
 
@@ -328,14 +330,16 @@ function getJulesMarker(titleOrDate: string) {
     return { label: 'J', class: 'jules-marker--jules' };
   }
 
-  const day = julesDays.value.find((item) => occursOnDate(item, titleOrDate));
-  if (!day) {
+  const matchingDays = julesDays.value.filter((item) => occursOnDate(item, titleOrDate));
+  if (matchingDays.some((day) => day.title === 'No Jules Day')) {
+    return { label: 'J', class: 'jules-marker--no-jules' };
+  }
+
+  if (matchingDays.length === 0) {
     return null;
   }
 
-  return day.title === 'No Jules Day'
-    ? { label: 'J', class: 'jules-marker--no-jules' }
-    : { label: 'J', class: 'jules-marker--jules' };
+  return { label: 'J', class: 'jules-marker--jules' };
 }
 
 function openMonthYearDialog() {

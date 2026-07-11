@@ -182,6 +182,24 @@ export function getOccurrenceStartDate(record: RecurringRecord, targetDate: stri
   return null;
 }
 
+export function getOccurrenceDatesUpTo(record: RecurringRecord, targetDate: string): string[] {
+  const starts = getRecurrenceStartDatesUpTo(record, targetDate);
+  const duration = Math.max(1, diffDays(record.start, record.end) + 1);
+  const dates: string[] = [];
+
+  starts.forEach((startDate) => {
+    const endDate = addDays(startDate, duration - 1);
+    const cappedEnd = endDate > targetDate ? targetDate : endDate;
+    let cursor = startDate;
+    while (cursor <= cappedEnd) {
+      dates.push(cursor);
+      cursor = addDays(cursor, 1);
+    }
+  });
+
+  return dates;
+}
+
 export function occursOnDate(record: RecurringRecord, date: string): boolean {
   return getOccurrenceStartDate(record, date) !== null;
 }

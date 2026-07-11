@@ -673,11 +673,11 @@ function getHiddenEventCount(date: string) {
 }
 
 function getJulesMarker(date: string) {
-  const day = props.julesDays.find((item) => occursOnDate(item, date));
-  if (!day) return null;
-  if (day.title === 'No Jules Day') {
+  const matchingDays = props.julesDays.filter((item) => occursOnDate(item, date));
+  if (matchingDays.some((day) => day.title === 'No Jules Day')) {
     return { label: 'J', class: 'jules-marker--no-jules' };
   }
+  if (matchingDays.length === 0) return null;
   return { label: 'J', class: 'jules-marker--jules' };
 }
 

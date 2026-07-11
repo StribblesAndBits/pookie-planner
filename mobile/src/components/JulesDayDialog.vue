@@ -44,9 +44,33 @@
       <v-card-actions>
         <v-spacer />
         <v-btn color="primary" class="action-btn jules-modal-action-btn" size="small" density="comfortable" rounded="pill" @click="closeDialog">Cancel</v-btn>
-        <v-btn color="primary" class="action-btn jules-modal-action-btn" size="small" density="comfortable" rounded="pill" :loading="saving" @click="emit('save')">
+        <v-btn color="primary" class="action-btn jules-modal-action-btn" size="small" density="comfortable" rounded="pill" :loading="saving" @click="handleSaveClick">
           Save
         </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <v-dialog v-model="showOverwriteConfirmDialog" max-width="520px">
+    <v-card class="jules-form-card app-modal-card">
+      <v-card-title>Overwrite Jules Days?</v-card-title>
+      <v-card-text>
+        <div class="overwrite-panel">
+          <p class="overwrite-copy">
+            Clicking "Yes" will overwrite previously scheduled Jules days. Are you sure you would like to do this?
+          </p>
+          <div v-if="overwriteConflictDates.length > 0" class="overwrite-dates">
+            <p class="overwrite-dates-title">Dates that will be overwritten:</p>
+            <ul class="overwrite-date-list">
+              <li v-for="date in overwriteConflictDates" :key="date">{{ formatDisplayDate(date) }}</li>
+            </ul>
+          </div>
+        </div>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn color="primary" class="action-btn jules-modal-action-btn" size="small" density="comfortable" rounded="pill" @click="showOverwriteConfirmDialog = false">No</v-btn>
+        <v-btn color="error" class="action-btn jules-modal-action-btn" size="small" density="comfortable" rounded="pill" @click="confirmOverwrite">Yes</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -134,7 +158,7 @@
 import { computed, ref, toRef, watch } from 'vue';
 import { VBtn, VCard, VCardActions, VCardText, VDialog, VRadio, VRadioGroup, VSelect, VSpacer, VTextField, VTextarea } from 'vuetify/components';
 import DatePickerField from '@/components/DatePickerField.vue';
-import { recurrenceSummary, weekDays } from '@/utils/recurrence';
+import { formatDisplayDate, getOccurrenceDatesUpTo, occursOnDate, recurrenceSummary, weekDays } from '@/utils/recurrence';
 
 type JulesDayForm = {
   title: string;
@@ -157,11 +181,28 @@ const props = withDefaults(defineProps<{
   saving?: boolean;
   error?: string;
   showCustomRecurrenceButton?: boolean;
+  existingJulesDays?: Array<{
+    id: number;
+    title: string;
+    start: string;
+    end: string;
+    recurrence_type?: 'none' | 'daily' | 'weekly' | 'biweekly' | 'annually' | 'custom';
+    recurrence_interval?: number | null;
+    recurrence_unit?: 'day' | 'week' | 'month' | 'year' | null;
+    recurrence_days_of_week?: number[] | null;
+    recurrence_end_type?: 'never' | 'on' | 'after' | null;
+    recurrence_end_date?: string | null;
+    recurrence_occurrences?: number | null;
+    excluded_occurrences?: string[] | null;
+  }>;
+  currentJulesDayId?: number | null;
 }>(), {
   isEditing: false,
   saving: false,
   error: '',
   showCustomRecurrenceButton: true,
+  existingJulesDays: () => [],
+  currentJulesDayId: null,
 });
 
 const emit = defineEmits<{
@@ -176,6 +217,7 @@ const dialogOpen = computed({
 
 const form = toRef(props, 'form');
 const showCustomRecurrenceDialog = ref(false);
+const showOverwriteConfirmDialog = ref(false);
 
 const titleOptions = [
   { title: 'Jules Day', value: 'Jules Day' },
@@ -200,6 +242,16 @@ const customRecurrenceUnits = [
 
 const weekdayOptions = weekDays.map((label, value) => ({ label: label.slice(0, 1), value }));
 const customRecurrenceSummary = computed(() => recurrenceSummary(form.value));
+const overwriteConflictDates = computed(() => {
+  const targetDate = props.existingJulesDays.reduce((latest, day) => (day.end > latest ? day.end : latest), form.value.end);
+  const candidateDates = getOccurrenceDatesUpTo(form.value, targetDate);
+
+  return Array.from(new Set(candidateDates.filter((date) => props.existingJulesDays.some((day) => {
+    if (day.id === props.currentJulesDayId) return false;
+    return occursOnDate(day, date);
+  })))).sort();
+});
+const shouldConfirmOverwrite = computed(() => overwriteConflictDates.value.length > 0);
 
 watch(() => props.modelValue, (open) => {
   if (!open) {
@@ -209,7 +261,22 @@ watch(() => props.modelValue, (open) => {
 
 function closeDialog() {
   showCustomRecurrenceDialog.value = false;
+  showOverwriteConfirmDialog.value = false;
   emit('update:modelValue', false);
+}
+
+function handleSaveClick() {
+  if (shouldConfirmOverwrite.value) {
+    showOverwriteConfirmDialog.value = true;
+    return;
+  }
+
+  emit('save');
+}
+
+function confirmOverwrite() {
+  showOverwriteConfirmDialog.value = false;
+  emit('save');
 }
 
 function handleRecurrenceTypeChange(value: JulesDayForm['recurrence_type']) {
@@ -346,6 +413,44 @@ function handleCustomUnitChange() {
 .form-error {
   margin: 0;
   color: #b91c1c;
+  font-size: 14px;
+}
+
+.overwrite-copy {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.overwrite-panel {
+  display: grid;
+  gap: 12px;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: inset 0 0 0 1px #dbe4f0;
+  margin-bottom: 14px;
+}
+
+.overwrite-dates {
+  display: grid;
+  gap: 8px;
+}
+
+.overwrite-dates-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.overwrite-date-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  color: #334155;
   font-size: 14px;
 }
 
