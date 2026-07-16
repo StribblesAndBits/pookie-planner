@@ -30,7 +30,7 @@
                   <li v-for="utility in currentMonthUnpaidUtilities" :key="utility.id" class="utility-item">
                     <div class="utility-main">
                       <span class="utility-name">{{ utility.name }}</span>
-                      <span class="utility-meta">{{ formatDueDate(utility.due_date) }} • {{ formatCurrency(utility.amount) }}</span>
+                      <span class="utility-meta">{{ formatDueDate(utility.due_date) }} • {{ formatUtilityAmount(utility.amount, utility.utility_currency) }}</span>
                     </div>
                     <div class="utility-actions">
                       <span class="utility-tag" :class="utility.tag">{{ utility.tag === 'essential' ? 'Essential' : 'Non-essential' }}</span>
@@ -102,7 +102,11 @@
             :menu-props="{ contentClass: 'event-select-menu' }"
           />
           <DatePickerField v-model="utilityForm.due_date" label="Due date" density="comfortable" class="date-field" />
-          <CurrencyAmountField v-model="utilityForm.amount" label="Amount" prefix="$" />
+          <div class="custom-recurrence-inline">
+            <p class="custom-recurrence-summary">Bill unit</p>
+            <UtilityCurrencyToggle v-model="utilityForm.utility_currency" />
+          </div>
+          <CurrencyAmountField v-model="utilityForm.amount" label="Amount" :prefix-variant="utilityPrefixVariant" />
           <label class="all-day-checkbox">
             <input v-model="utilityForm.recurs_monthly" type="checkbox" class="all-day-checkbox-input">
             <span class="all-day-checkbox-label">Recurring monthly</span>
@@ -144,12 +148,14 @@ import CalendarCard from '@/components/CalendarCard.vue';
 import DatePickerField from '@/components/DatePickerField.vue';
 import JulesDayDialog from '@/components/JulesDayDialog.vue';
 import CurrencyAmountField from '@/components/CurrencyAmountField.vue';
+import UtilityCurrencyToggle from '@/components/UtilityCurrencyToggle.vue';
 import api from '@/services/api';
 import {
   JULES_TITLE_GENERAL,
   describeJulesDay,
   normalizeJulesTitle,
 } from '@/utils/jules';
+import { formatUtilityAmount, normalizeUtilityCurrency } from '@/utils/utility';
 import {
   datesInRange,
   formatDateString,
@@ -164,6 +170,7 @@ type UtilityItem = {
   tag: 'essential' | 'non-essential';
   due_date: string;
   amount: string;
+  utility_currency?: 'dollars' | 'kisses' | null;
   status: 'unpaid' | 'paid';
   recurs_monthly: boolean;
 };
@@ -221,6 +228,7 @@ const utilityForm = ref({
   tag: 'essential' as 'essential' | 'non-essential',
   due_date: formatDateString(new Date()),
   amount: 0,
+  utility_currency: 'dollars' as 'dollars' | 'kisses',
   recurs_monthly: false,
 });
 
@@ -276,9 +284,7 @@ const currentMonthUnpaidUtilities = computed(() => {
     .sort((a, b) => a.due_date.localeCompare(b.due_date));
 });
 
-function formatCurrency(amount: string) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(amount));
-}
+const utilityPrefixVariant = computed(() => (utilityForm.value.utility_currency === 'kisses' ? 'kiss' : 'dollar'));
 
 function formatDueDate(date: string) {
   return new Date(`${date}T00:00:00`).toLocaleDateString('en-US', {
@@ -305,6 +311,7 @@ function openAddUtilityDialog() {
     tag: 'essential',
     due_date: new Date().toISOString().slice(0, 10),
     amount: 0,
+    utility_currency: 'dollars',
     recurs_monthly: false,
   };
   showAddUtilityDialog.value = true;
@@ -339,6 +346,7 @@ function openEditUtilityDialog(utility: UtilityItem) {
     tag: utility.tag,
     due_date: utility.due_date,
     amount: Number(utility.amount),
+    utility_currency: normalizeUtilityCurrency(utility.utility_currency),
     recurs_monthly: utility.recurs_monthly,
   };
   showAddUtilityDialog.value = true;
@@ -630,7 +638,7 @@ onIonViewWillEnter(async () => {
 .custom-recurrence-inline {
   display: grid;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .custom-recurrence-summary {

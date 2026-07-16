@@ -16,7 +16,6 @@ class User extends Authenticatable
     use HasFactory, Notifiable, HasApiTokens;
 
     public const COLOR_PREFERENCES = ['#D6486B', '#6B3F38', '#5C6E4A', '#D9A441'];
-
     /**
      * The attributes that are mass assignable.
      *

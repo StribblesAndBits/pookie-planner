@@ -23,6 +23,7 @@ class UtilityApiTest extends TestCase
             'tag' => 'essential',
             'due_date' => '2026-07-20',
             'amount' => 145.23,
+            'utility_currency' => 'dollars',
             'recurs_monthly' => true,
         ]);
 
@@ -37,6 +38,32 @@ class UtilityApiTest extends TestCase
             'name' => 'Power',
             'tag' => 'essential',
             'status' => 'unpaid',
+            'utility_currency' => 'dollars',
+        ]);
+    }
+
+    public function test_user_can_create_utility_with_kisses_currency(): void
+    {
+        $user = $this->createUser('utility-kisses@example.com');
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/utilities', [
+            'name' => 'Boba',
+            'tag' => 'non-essential',
+            'due_date' => '2026-07-20',
+            'amount' => 12.5,
+            'utility_currency' => 'kisses',
+            'recurs_monthly' => false,
+        ]);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('utility_currency', 'kisses');
+
+        $this->assertDatabaseHas('utilities', [
+            'user_id' => $user->id,
+            'name' => 'Boba',
+            'utility_currency' => 'kisses',
         ]);
     }
 
@@ -51,6 +78,7 @@ class UtilityApiTest extends TestCase
             'tag' => 'essential',
             'due_date' => '2026-07-12',
             'amount' => 79.99,
+            'utility_currency' => 'dollars',
             'status' => 'unpaid',
             'recurs_monthly' => false,
         ]);

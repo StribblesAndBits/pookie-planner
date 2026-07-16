@@ -22,7 +22,7 @@
               <li v-for="utility in utilities" :key="utility.id" class="utility-item" @click="openUtilityDialog(utility)">
                 <div class="utility-main">
                   <span class="utility-name">{{ utility.name }}</span>
-                  <span class="utility-meta">{{ formatDueDate(utility.due_date) }} • {{ formatCurrency(utility.amount) }}</span>
+                  <span class="utility-meta">{{ formatDueDate(utility.due_date) }} • {{ formatUtilityAmount(utility.amount, utility.utility_currency) }}</span>
                 </div>
                 <div class="utility-actions">
                   <span class="status-chip" :class="utility.status">{{ utility.status === 'paid' ? 'Paid' : 'Unpaid' }}</span>
@@ -65,7 +65,14 @@
             :disabled="isUtilityModalReadOnly"
           />
           <DatePickerField v-model="utilityForm.due_date" label="Due date" density="comfortable" class="date-field" :disabled="isUtilityModalReadOnly" />
-          <CurrencyAmountField v-model="utilityForm.amount" label="Amount" prefix="$" :disabled="isUtilityModalReadOnly" />
+          <div class="custom-recurrence-inline">
+            <p class="custom-recurrence-summary">Bill unit</p>
+            <UtilityCurrencyToggle
+              v-model="utilityForm.utility_currency"
+              :disabled="isUtilityModalReadOnly"
+            />
+          </div>
+          <CurrencyAmountField v-model="utilityForm.amount" label="Amount" :prefix-variant="utilityPrefixVariant" :disabled="isUtilityModalReadOnly" />
           <label class="all-day-checkbox" :class="{ 'is-disabled': isUtilityModalReadOnly }">
             <input v-model="utilityForm.recurs_monthly" type="checkbox" class="all-day-checkbox-input" :disabled="isUtilityModalReadOnly">
             <span class="all-day-checkbox-label">Recurring monthly</span>
@@ -91,7 +98,9 @@ import { VCard, VCardTitle, VCardText, VBtn, VDialog, VTextField, VSelect, VCard
 import Navbar from '@/components/Navbar.vue';
 import DatePickerField from '@/components/DatePickerField.vue';
 import CurrencyAmountField from '@/components/CurrencyAmountField.vue';
+import UtilityCurrencyToggle from '@/components/UtilityCurrencyToggle.vue';
 import api from '@/services/api';
+import { formatUtilityAmount, normalizeUtilityCurrency } from '@/utils/utility';
 
 type UtilityItem = {
   id: number;
@@ -99,6 +108,7 @@ type UtilityItem = {
   tag: 'essential' | 'non-essential';
   due_date: string;
   amount: string;
+  utility_currency?: 'dollars' | 'kisses' | null;
   status: 'unpaid' | 'paid';
   recurs_monthly: boolean;
 };
@@ -120,18 +130,16 @@ const utilityForm = ref({
   tag: 'essential' as 'essential' | 'non-essential',
   due_date: new Date().toISOString().slice(0, 10),
   amount: 0,
+  utility_currency: 'dollars' as 'dollars' | 'kisses',
   recurs_monthly: false,
 });
+const utilityPrefixVariant = computed(() => (utilityForm.value.utility_currency === 'kisses' ? 'kiss' : 'dollar'));
 
 const utilityDialogTitle = computed(() => {
   if (isUtilityModalReadOnly.value) return 'Utility Details';
   if (editingUtilityId.value) return 'Edit Utility';
   return 'New Utility';
 });
-
-function formatCurrency(amount: string) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(amount));
-}
 
 function formatDueDate(date: string) {
   return new Date(`${date}T00:00:00`).toLocaleDateString('en-US', {
@@ -164,6 +172,7 @@ function openAddUtilityDialog() {
     tag: 'essential',
     due_date: new Date().toISOString().slice(0, 10),
     amount: 0,
+    utility_currency: 'dollars',
     recurs_monthly: false,
   };
   showAddUtilityDialog.value = true;
@@ -178,6 +187,7 @@ function openUtilityDialog(utility: UtilityItem) {
     tag: utility.tag,
     due_date: utility.due_date,
     amount: Number(utility.amount),
+    utility_currency: normalizeUtilityCurrency(utility.utility_currency),
     recurs_monthly: utility.recurs_monthly,
   };
   showAddUtilityDialog.value = true;
@@ -363,6 +373,18 @@ onIonViewWillEnter(async () => {
 .utility-form-card {
   border-radius: 20px;
   background-color: var(--app-modal-bg) !important;
+}
+
+.custom-recurrence-inline {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.custom-recurrence-summary {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
 }
 
 .all-day-checkbox {

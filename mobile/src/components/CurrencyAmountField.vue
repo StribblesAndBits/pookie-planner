@@ -4,13 +4,21 @@
     :label="label"
     :density="density"
     :disabled="disabled"
-    :prefix="prefix"
+    :prefix="prefixVariant ? '' : prefix"
     type="number"
     :step="step"
     :min="min"
     class="currency-amount-field"
     @update:model-value="handleInput"
   >
+    <template v-if="prefixVariant" #prepend-inner>
+      <span class="currency-prefix" aria-hidden="true">
+        <v-icon
+          :icon="prefixVariant === 'dollar' ? 'mdi-currency-usd' : 'mdi-emoticon-kiss'"
+          class="currency-prefix-icon"
+        />
+      </span>
+    </template>
     <template #append-inner>
       <div class="currency-stepper" aria-hidden="true">
         <button
@@ -40,18 +48,20 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { VTextField } from 'vuetify/components';
+import { VIcon, VTextField } from 'vuetify/components';
 
 const props = withDefaults(defineProps<{
   modelValue: number;
   label: string;
   prefix?: string;
+  prefixVariant?: 'dollar' | 'kiss';
   density?: 'default' | 'comfortable' | 'compact';
   min?: number;
   step?: number;
   disabled?: boolean;
 }>(), {
   prefix: '',
+  prefixVariant: undefined,
   density: 'comfortable',
   min: 0,
   step: 0.01,
@@ -99,15 +109,34 @@ function decrement() {
   padding-top: 0;
 }
 
+.currency-amount-field :deep(.v-field__prepend-inner) {
+  align-items: center;
+  padding-top: 0;
+}
+
+.currency-prefix {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 24px;
+}
+
+.currency-prefix-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
 .currency-stepper {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .currency-stepper-button {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 999px;
   border: 1px solid #d8c2c2;
   background: var(--color-primary);
@@ -119,10 +148,10 @@ function decrement() {
 }
 
 .currency-stepper-icon {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   stroke: #ffffff;
-  stroke-width: 3;
+  stroke-width: 2.75;
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: none;

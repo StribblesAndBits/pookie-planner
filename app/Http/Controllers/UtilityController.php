@@ -27,6 +27,7 @@ class UtilityController extends Controller
         $utility = Utility::query()->create([
             ...$validated,
             'user_id' => $request->user()->id,
+            'utility_currency' => $validated['utility_currency'] ?? 'dollars',
             'status' => $validated['status'] ?? 'unpaid',
             'recurs_monthly' => (bool) ($validated['recurs_monthly'] ?? false),
         ]);
@@ -60,6 +61,7 @@ class UtilityController extends Controller
             'tag' => ['required', Rule::in(Utility::TAGS)],
             'due_date' => 'required|date_format:Y-m-d',
             'amount' => 'required|numeric|min:0|max:99999999.99',
+            'utility_currency' => ['nullable', 'string', Rule::in(Utility::CURRENCIES)],
             'status' => ['nullable', Rule::in(Utility::STATUSES)],
             'recurs_monthly' => 'nullable|boolean',
         ];
@@ -72,6 +74,7 @@ class UtilityController extends Controller
             'tag' => ['sometimes', 'required', Rule::in(Utility::TAGS)],
             'due_date' => 'sometimes|required|date_format:Y-m-d',
             'amount' => 'sometimes|required|numeric|min:0|max:99999999.99',
+            'utility_currency' => ['sometimes', 'required', Rule::in(Utility::CURRENCIES)],
             'status' => ['sometimes', 'required', Rule::in(Utility::STATUSES)],
             'recurs_monthly' => 'sometimes|required|boolean',
         ];

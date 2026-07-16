@@ -9,6 +9,7 @@ class Utility extends Model
 {
     public const TAGS = ['essential', 'non-essential'];
     public const STATUSES = ['unpaid', 'paid'];
+    public const CURRENCIES = ['dollars', 'kisses'];
 
     protected $fillable = [
         'user_id',
@@ -16,6 +17,7 @@ class Utility extends Model
         'tag',
         'due_date',
         'amount',
+        'utility_currency',
         'status',
         'recurs_monthly',
     ];
