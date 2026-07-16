@@ -46,9 +46,9 @@ export function formatDisplayDate(dateStr: string): string {
   if (Number.isNaN(date.getTime())) return dateStr;
 
   return date.toLocaleDateString('en-US', {
-    weekday: 'long',
+    weekday: 'short',
     year: 'numeric',
-    month: 'long',
+    month: 'short',
     day: 'numeric',
   });
 }

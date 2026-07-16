@@ -14,6 +14,18 @@
         />
         <DatePickerField v-model="form.start" label="Start date" density="comfortable" class="date-field" />
         <DatePickerField v-model="form.end" label="End date" density="comfortable" class="date-field" />
+        <v-text-field
+          v-model="form.coming_time"
+          :label="comingTimeLabel"
+          type="time"
+          density="comfortable"
+        />
+        <v-text-field
+          v-model="form.leaving_time"
+          :label="leavingTimeLabel"
+          type="time"
+          density="comfortable"
+        />
         <v-select
           v-model="form.recurrence_type"
           label="Repeat"
@@ -159,11 +171,18 @@ import { computed, ref, toRef, watch } from 'vue';
 import { VBtn, VCard, VCardActions, VCardText, VDialog, VRadio, VRadioGroup, VSelect, VSpacer, VTextField, VTextarea } from 'vuetify/components';
 import DatePickerField from '@/components/DatePickerField.vue';
 import { formatDisplayDate, getOccurrenceDatesUpTo, occursOnDate, recurrenceSummary, weekDays } from '@/utils/recurrence';
+import {
+  JULES_TITLE_GENERAL,
+  JULES_TITLE_NO,
+  normalizeJulesTitle,
+} from '@/utils/jules';
 
 type JulesDayForm = {
   title: string;
   start: string;
   end: string;
+  coming_time: string;
+  leaving_time: string;
   description: string;
   recurrence_type: 'none' | 'daily' | 'weekly' | 'biweekly' | 'annually' | 'custom';
   recurrence_interval: number;
@@ -220,8 +239,8 @@ const showCustomRecurrenceDialog = ref(false);
 const showOverwriteConfirmDialog = ref(false);
 
 const titleOptions = [
-  { title: 'Jules Day', value: 'Jules Day' },
-  { title: 'No Jules Day', value: 'No Jules Day' },
+  { title: 'Jules Day', value: JULES_TITLE_GENERAL },
+  { title: 'No Jules Day', value: JULES_TITLE_NO },
 ];
 
 const recurrenceOptions = [
@@ -242,6 +261,9 @@ const customRecurrenceUnits = [
 
 const weekdayOptions = weekDays.map((label, value) => ({ label: label.slice(0, 1), value }));
 const customRecurrenceSummary = computed(() => recurrenceSummary(form.value));
+const isNoJulesTitleSelected = computed(() => normalizeJulesTitle(form.value.title) === JULES_TITLE_NO);
+const comingTimeLabel = computed(() => (isNoJulesTitleSelected.value ? 'Leaving time (start day)' : 'Arriving time (start day)'));
+const leavingTimeLabel = computed(() => (isNoJulesTitleSelected.value ? 'Arriving time (end day)' : 'Leaving time (end day)'));
 const overwriteConflictDates = computed(() => {
   const targetDate = props.existingJulesDays.reduce((latest, day) => (day.end > latest ? day.end : latest), form.value.end);
   const candidateDates = getOccurrenceDatesUpTo(form.value, targetDate);
@@ -256,6 +278,20 @@ const shouldConfirmOverwrite = computed(() => overwriteConflictDates.value.lengt
 watch(() => props.modelValue, (open) => {
   if (!open) {
     showCustomRecurrenceDialog.value = false;
+  }
+});
+
+watch(() => form.value.title, (nextTitle, previousTitle) => {
+  const normalizedTitle = normalizeJulesTitle(nextTitle);
+  if (normalizedTitle !== nextTitle) {
+    form.value.title = normalizedTitle;
+    return;
+  }
+
+  const wasNoJulesTitle = normalizeJulesTitle(previousTitle ?? '') === JULES_TITLE_NO;
+  const isNoJulesTitle = normalizedTitle === JULES_TITLE_NO;
+  if (wasNoJulesTitle !== isNoJulesTitle) {
+    [form.value.coming_time, form.value.leaving_time] = [form.value.leaving_time, form.value.coming_time];
   }
 });
 

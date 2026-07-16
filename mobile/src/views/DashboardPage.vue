@@ -2,88 +2,90 @@
   <ion-page>
     <Navbar />
 
-    <div class="dashboard-content">
-      <div class="dashboard-container">
-        <div class="calendar-section">
-          <CalendarCard ref="calendarCardRef" :jules-days="julesDays" />
-        </div>
+    <ion-content :fullscreen="true">
+      <div class="dashboard-content">
+        <div class="dashboard-container">
+          <div class="calendar-section">
+            <CalendarCard ref="calendarCardRef" :jules-days="julesDays" />
+          </div>
 
-        <v-card class="utilities-summary-card">
-          <v-card-title class="utilities-summary-title utilities-summary-title-row">
-            <span>Utilities Tracker</span>
-            <div class="summary-actions">
-              <v-btn color="primary" size="x-small" density="comfortable" rounded="lg" class="action-btn" @click="openAddUtilityDialog">
-                Add Utility
-              </v-btn>
-              <v-btn color="primary" size="x-small" density="comfortable" rounded="lg" class="action-btn" @click="goToUtilities">
-                See All
-              </v-btn>
-            </div>
-          </v-card-title>
-          <v-card-text class="utilities-summary-content">
-            <p v-if="loadingUtilities" class="utilities-summary-copy">Loading utilities...</p>
-            <p v-else-if="utilitiesError" class="utilities-summary-error">{{ utilitiesError }}</p>
-            <template v-else-if="currentMonthUnpaidUtilities.length > 0">
-              <p class="utilities-summary-copy">Unpaid utilities this month:</p>
-              <ul class="utility-list">
-                <li v-for="utility in currentMonthUnpaidUtilities" :key="utility.id" class="utility-item">
-                  <div class="utility-main">
-                    <span class="utility-name">{{ utility.name }}</span>
-                    <span class="utility-meta">{{ formatDueDate(utility.due_date) }} • {{ formatCurrency(utility.amount) }}</span>
-                  </div>
-                  <div class="utility-actions">
-                    <span class="utility-tag" :class="utility.tag">{{ utility.tag === 'essential' ? 'Essential' : 'Non-essential' }}</span>
-                    <div class="utility-action-row">
-                      <v-btn color="primary" size="x-small" density="comfortable" rounded="lg" class="action-btn" @click="openEditUtilityDialog(utility)">
-                        Edit
-                      </v-btn>
-                      <v-btn color="primary" size="x-small" density="comfortable" rounded="lg" class="action-btn" @click="markUtilityAsPaid(utility.id)">
-                        Mark Paid
-                      </v-btn>
+          <v-card class="utilities-summary-card">
+            <v-card-title class="utilities-summary-title utilities-summary-title-row">
+              <span>Utilities Tracker</span>
+              <div class="summary-actions">
+                <v-btn color="primary" size="x-small" density="comfortable" rounded="lg" class="action-btn" @click="openAddUtilityDialog">
+                  Add Utility
+                </v-btn>
+                <v-btn color="primary" size="x-small" density="comfortable" rounded="lg" class="action-btn" @click="goToUtilities">
+                  See All
+                </v-btn>
+              </div>
+            </v-card-title>
+            <v-card-text class="utilities-summary-content">
+              <p v-if="loadingUtilities" class="utilities-summary-copy">Loading utilities...</p>
+              <p v-else-if="utilitiesError" class="utilities-summary-error">{{ utilitiesError }}</p>
+              <template v-else-if="currentMonthUnpaidUtilities.length > 0">
+                <p class="utilities-summary-copy">Unpaid utilities this month:</p>
+                <ul class="utility-list">
+                  <li v-for="utility in currentMonthUnpaidUtilities" :key="utility.id" class="utility-item">
+                    <div class="utility-main">
+                      <span class="utility-name">{{ utility.name }}</span>
+                      <span class="utility-meta">{{ formatDueDate(utility.due_date) }} • {{ formatCurrency(utility.amount) }}</span>
                     </div>
-                  </div>
-                </li>
-              </ul>
-            </template>
-            <template v-else>
-              <p class="utilities-summary-copy">No unpaid utilities for this month.</p>
-            </template>
-          </v-card-text>
-        </v-card>
+                    <div class="utility-actions">
+                      <span class="utility-tag" :class="utility.tag">{{ utility.tag === 'essential' ? 'Essential' : 'Non-essential' }}</span>
+                      <div class="utility-action-row">
+                        <v-btn color="primary" size="x-small" density="comfortable" rounded="lg" class="action-btn" @click="openEditUtilityDialog(utility)">
+                          Edit
+                        </v-btn>
+                        <v-btn color="primary" size="x-small" density="comfortable" rounded="lg" class="action-btn" @click="markUtilityAsPaid(utility.id)">
+                          Mark Paid
+                        </v-btn>
+                      </div>
+                    </div>
+                  </li>
+                </ul>
+              </template>
+              <template v-else>
+                <p class="utilities-summary-copy">No unpaid utilities for this month.</p>
+              </template>
+            </v-card-text>
+          </v-card>
 
-        <v-card class="jules-summary-card">
-          <v-card-title class="utilities-summary-title jules-summary-title-row">
-            <span>Jules Days</span>
-            <div class="summary-actions">
-              <v-btn color="primary" size="x-small" density="comfortable" rounded="lg" class="action-btn" @click="openAddJulesDayDialog()">
-                Add Jules Day
-              </v-btn>
-              <v-btn color="primary" size="x-small" density="comfortable" rounded="lg" class="action-btn" @click="goToJules">
-                Jules Page
-              </v-btn>
-            </div>
-          </v-card-title>
-          <v-card-text class="utilities-summary-content">
-            <p v-if="loadingJulesDays" class="utilities-summary-copy">Loading Jules Days...</p>
-            <p v-else-if="julesDaysError" class="utilities-summary-error">{{ julesDaysError }}</p>
-            <template v-else-if="currentWeekJulesDays.length > 0">
-              <p class="utilities-summary-copy">Jules Days this week:</p>
-              <ul class="utility-list">
-                <li v-for="day in currentWeekJulesDays" :key="`${day.id}-${day.occurrence_start}`" class="utility-item">
-                  <div class="utility-main">
-                    <span class="utility-name">{{ day.title }}</span>
-                    <span class="utility-meta">{{ formatJulesOccurrenceDate(day.occurrence_date) }}</span>
-                  </div>
-                </li>
-              </ul>
-            </template>
-            <template v-else>
-              <p class="utilities-summary-copy">No Jules Days for this week.</p>
-            </template>
-          </v-card-text>
-        </v-card>
+          <v-card class="jules-summary-card">
+            <v-card-title class="utilities-summary-title jules-summary-title-row">
+              <span>Jules Days</span>
+              <div class="summary-actions">
+                <v-btn color="primary" size="x-small" density="comfortable" rounded="lg" class="action-btn" @click="openAddJulesDayDialog()">
+                  Add Jules Day
+                </v-btn>
+                <v-btn color="primary" size="x-small" density="comfortable" rounded="lg" class="action-btn" @click="goToJules">
+                  Jules Page
+                </v-btn>
+              </div>
+            </v-card-title>
+            <v-card-text class="utilities-summary-content">
+              <p v-if="loadingJulesDays" class="utilities-summary-copy">Loading Jules Days...</p>
+              <p v-else-if="julesDaysError" class="utilities-summary-error">{{ julesDaysError }}</p>
+              <template v-else-if="currentWeekJulesDays.length > 0">
+                <p class="utilities-summary-copy">Jules Days this week:</p>
+                <ul class="utility-list">
+                  <li v-for="day in currentWeekJulesDays" :key="`${day.id}-${day.occurrence_start}`" class="utility-item">
+                    <div class="utility-main">
+                      <span class="utility-name">{{ describeJulesDay(day.title, day.coming_time, day.leaving_time) }}</span>
+                      <span class="utility-meta">{{ formatJulesOccurrenceDate(day) }}</span>
+                    </div>
+                  </li>
+                </ul>
+              </template>
+              <template v-else>
+                <p class="utilities-summary-copy">No Jules Days for this week.</p>
+              </template>
+            </v-card-text>
+          </v-card>
+        </div>
       </div>
-    </div>
+    </ion-content>
 
     <v-dialog v-model="showAddUtilityDialog" max-width="500px">
       <v-card class="utility-form-card app-modal-card">
@@ -134,7 +136,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { onIonViewWillEnter } from '@ionic/vue';
-import { IonPage } from '@ionic/vue';
+import { IonPage, IonContent } from '@ionic/vue';
 import { useRouter } from 'vue-router';
 import { VCard, VCardTitle, VCardText, VBtn, VDialog, VTextField, VSelect, VCardActions, VSpacer } from 'vuetify/components';
 import Navbar from '@/components/Navbar.vue';
@@ -144,8 +146,12 @@ import JulesDayDialog from '@/components/JulesDayDialog.vue';
 import CurrencyAmountField from '@/components/CurrencyAmountField.vue';
 import api from '@/services/api';
 import {
+  JULES_TITLE_GENERAL,
+  describeJulesDay,
+  normalizeJulesTitle,
+} from '@/utils/jules';
+import {
   datesInRange,
-  formatDisplayDate,
   formatDateString,
   getOccurrenceStartDate,
   getWeekRange,
@@ -167,6 +173,8 @@ type JulesDayItem = {
   title: string;
   start: string;
   end: string;
+  coming_time?: string | null;
+  leaving_time?: string | null;
   description?: string | null;
   all_day?: boolean;
   recurrence_type?: 'none' | 'daily' | 'weekly' | 'biweekly' | 'annually' | 'custom';
@@ -183,6 +191,8 @@ type JulesDayForm = {
   title: string;
   start: string;
   end: string;
+  coming_time: string;
+  leaving_time: string;
   description: string;
   recurrence_type: 'none' | 'daily' | 'weekly' | 'biweekly' | 'annually' | 'custom';
   recurrence_interval: number;
@@ -221,9 +231,11 @@ const showAddJulesDialog = ref(false);
 const savingJulesDay = ref(false);
 const julesFormError = ref('');
 const julesForm = ref<JulesDayForm>({
-  title: 'Jules Day',
+  title: JULES_TITLE_GENERAL,
   start: formatDateString(new Date()),
   end: formatDateString(new Date()),
+  coming_time: '',
+  leaving_time: '',
   description: '',
   recurrence_type: 'none',
   recurrence_interval: 1,
@@ -270,8 +282,8 @@ function formatCurrency(amount: string) {
 
 function formatDueDate(date: string) {
   return new Date(`${date}T00:00:00`).toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
+    weekday: 'short',
+    month: 'short',
     day: 'numeric',
     year: 'numeric',
   });
@@ -303,9 +315,11 @@ function openAddJulesDayDialog(date?: string) {
   showAddJulesDialog.value = true;
   const initialDate = typeof date === 'string' && date ? date : formatDateString(new Date());
   julesForm.value = {
-    title: 'Jules Day',
+    title: JULES_TITLE_GENERAL,
     start: initialDate,
     end: initialDate,
+    coming_time: '',
+    leaving_time: '',
     description: '',
     recurrence_type: 'none',
     recurrence_interval: 1,
@@ -387,8 +401,13 @@ async function markUtilityAsPaid(utilityId: number) {
   await loadUtilities();
 }
 
-function formatJulesOccurrenceDate(date: string) {
-  return formatDisplayDate(date);
+function formatJulesOccurrenceDate(day: JulesDayItem & { occurrence_date: string }) {
+  return new Date(`${day.occurrence_date}T00:00:00`).toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 function friendlyJulesLoadError(error: any) {
@@ -406,6 +425,9 @@ async function saveJulesDay() {
   try {
     const payload = {
       ...julesForm.value,
+      title: normalizeJulesTitle(julesForm.value.title),
+      coming_time: julesForm.value.coming_time || null,
+      leaving_time: julesForm.value.leaving_time || null,
       recurrence_end_date: julesForm.value.recurrence_end_type === 'on' ? julesForm.value.recurrence_end_date : null,
       recurrence_occurrences: julesForm.value.recurrence_end_type === 'after' ? julesForm.value.recurrence_occurrences : null,
       recurrence_days_of_week: julesForm.value.recurrence_unit === 'week' ? julesForm.value.recurrence_days_of_week : [],
@@ -442,11 +464,10 @@ onIonViewWillEnter(async () => {
 
 <style scoped>
 .dashboard-content {
-  height: calc(100vh - 65px);
-  height: calc(100dvh - 65px);
+  min-height: calc(100vh - 65px);
+  min-height: calc(100dvh - 65px);
   padding: 10px 5px;
   box-sizing: border-box;
-  overflow-y: auto;
 }
 
 .dashboard-container {

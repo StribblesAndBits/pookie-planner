@@ -13,7 +13,7 @@ class EventController extends Controller
     public function index(Request $request): JsonResponse
     {
         $events = Event::query()
-            ->where('user_id', $request->user()->id)
+            ->with('user')
             ->orderBy('start')
             ->orderBy('start_time')
             ->orderBy('id')
@@ -33,7 +33,7 @@ class EventController extends Controller
             'user_id' => $request->user()->id,
         ]);
 
-        return response()->json($event, 201);
+        return response()->json($event->load('user'), 201);
     }
 
     public function update(Request $request, int $id): JsonResponse
@@ -49,7 +49,7 @@ class EventController extends Controller
 
         $event->update($payload);
 
-        return response()->json($event);
+        return response()->json($event->load('user'));
     }
 
     public function destroy(Request $request, int $id): JsonResponse

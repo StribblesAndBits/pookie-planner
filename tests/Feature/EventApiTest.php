@@ -63,6 +63,87 @@ class EventApiTest extends TestCase
             ->assertJsonValidationErrors(['start_time']);
     }
 
+    public function test_users_can_view_all_events_but_only_edit_their_own(): void
+    {
+        $alice = $this->createUser('alice@example.com');
+        $bob = $this->createUser('bob@example.com');
+
+        $aliceEvent = Event::query()->create([
+            'user_id' => $alice->id,
+            'title' => 'Alice Event',
+            'start' => '2026-07-10',
+            'end' => '2026-07-10',
+            'start_time' => '09:00',
+            'end_time' => '10:00',
+            'description' => null,
+            'all_day' => false,
+            'recurrence_type' => 'none',
+            'recurrence_interval' => null,
+            'recurrence_unit' => null,
+            'recurrence_days_of_week' => null,
+            'recurrence_end_type' => null,
+            'recurrence_end_date' => null,
+            'recurrence_occurrences' => null,
+            'excluded_occurrences' => null,
+        ]);
+
+        Event::query()->create([
+            'user_id' => $bob->id,
+            'title' => 'Bob Event',
+            'start' => '2026-07-11',
+            'end' => '2026-07-11',
+            'start_time' => '11:00',
+            'end_time' => '12:00',
+            'description' => null,
+            'all_day' => false,
+            'recurrence_type' => 'none',
+            'recurrence_interval' => null,
+            'recurrence_unit' => null,
+            'recurrence_days_of_week' => null,
+            'recurrence_end_type' => null,
+            'recurrence_end_date' => null,
+            'recurrence_occurrences' => null,
+            'excluded_occurrences' => null,
+        ]);
+
+        Sanctum::actingAs($alice);
+
+        $response = $this->getJson('/api/events');
+
+        $response
+            ->assertOk()
+            ->assertJsonCount(2);
+
+        $titles = array_column($response->json(), 'title');
+        $this->assertSame(['Alice Event', 'Bob Event'], $titles);
+
+        $this->putJson("/api/events/{$aliceEvent->id}", [
+            'title' => 'Alice Event Updated',
+            'start' => '2026-07-10',
+            'end' => '2026-07-10',
+            'start_time' => '09:30',
+            'end_time' => '10:30',
+            'description' => null,
+            'all_day' => false,
+            'recurrence_type' => 'none',
+        ])->assertOk();
+
+        Sanctum::actingAs($bob);
+
+        $this->putJson("/api/events/{$aliceEvent->id}", [
+            'title' => 'Not Allowed',
+            'start' => '2026-07-10',
+            'end' => '2026-07-10',
+            'start_time' => '09:30',
+            'end_time' => '10:30',
+            'description' => null,
+            'all_day' => false,
+            'recurrence_type' => 'none',
+        ])->assertNotFound();
+
+        $this->deleteJson("/api/events/{$aliceEvent->id}")->assertNotFound();
+    }
+
     private function createUser(string $email = 'event-test@example.com'): User
     {
         return User::query()->create([

@@ -121,6 +121,8 @@ class JulesDayController extends Controller
             'title' => 'required|string|max:255',
             'start' => 'required|date_format:Y-m-d',
             'end' => 'required|date_format:Y-m-d|after_or_equal:start',
+            'coming_time' => 'nullable|date_format:H:i',
+            'leaving_time' => 'nullable|date_format:H:i',
             'description' => 'nullable|string|max:2000',
             'all_day' => 'nullable|boolean',
             'recurrence_type' => ['nullable', Rule::in(JulesDay::RECURRENCE_TYPES)],
@@ -145,11 +147,24 @@ class JulesDayController extends Controller
         $customOccurrences = isset($validated['recurrence_occurrences'])
             ? (int) $validated['recurrence_occurrences']
             : null;
+        $title = $validated['title'];
+        $comingTime = $validated['coming_time'] ?? null;
+        $leavingTime = $validated['leaving_time'] ?? null;
+
+        $isMultiDay = $validated['end'] !== $validated['start'];
+        if ($isMultiDay && (! is_string($comingTime) || ! is_string($leavingTime))) {
+            throw ValidationException::withMessages([
+                'coming_time' => ['Coming time and leaving time are required for multi-day Jules ranges.'],
+                'leaving_time' => ['Coming time and leaving time are required for multi-day Jules ranges.'],
+            ]);
+        }
 
         $payload = [
-            'title' => $validated['title'],
+            'title' => $title,
             'start' => $validated['start'],
             'end' => $validated['end'],
+            'coming_time' => is_string($comingTime) ? $comingTime : null,
+            'leaving_time' => is_string($leavingTime) ? $leavingTime : null,
             'description' => $validated['description'] ?? null,
             'all_day' => true,
             'recurrence_type' => $recurrenceType,
@@ -392,6 +407,9 @@ class JulesDayController extends Controller
             'title' => $source->title,
             'start' => $startDate,
             'end' => $endDate,
+            'transition_time' => $source->transition_time,
+            'coming_time' => $source->coming_time,
+            'leaving_time' => $source->leaving_time,
             'description' => $source->description,
             'all_day' => true,
             'recurrence_type' => 'none',

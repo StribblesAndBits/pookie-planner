@@ -79,13 +79,28 @@
           <template v-if="cell.date">
             <div class="date-row">
               <span class="date-label">{{ cell.dayNumber }}</span>
-              <span v-if="getJulesMarker(cell.date)" class="jules-marker" :class="getJulesMarker(cell.date)?.class">{{ getJulesMarker(cell.date)?.label }}</span>
+              <div v-if="getJulesMarkers(cell.date).length > 0" class="jules-markers">
+                <span
+                  v-for="(marker, markerIndex) in getJulesMarkers(cell.date)"
+                  :key="`${cell.date}-marker-${markerIndex}`"
+                  class="jules-marker"
+                  :class="marker.className"
+                >
+                  {{ marker.label }}
+                </span>
+              </div>
             </div>
           </template>
         </div>
       </div>
+      <div class="calendar-legend">
+        <span class="legend-item"><span class="legend-dot jules-marker--jules">J</span> Jules day</span>
+        <span class="legend-item"><span class="legend-dot jules-marker--coming">J</span> Jules arriving</span>
+        <span class="legend-item"><span class="legend-dot jules-marker--leaving">J</span> Jules leaving</span>
+        <span class="legend-item"><span class="legend-dot jules-marker--no-jules">J</span> No Jules day</span>
+      </div>
 
-      <v-dialog v-model="showDayModal" max-width="560px">
+      <v-dialog v-model="showDayModal" max-width="620px">
         <v-card v-if="selectedDayDate" class="day-view-card app-modal-card">
           <v-card-title class="title-row day-title-row">
             <span>{{ formatDisplayDate(selectedDayDate) }}</span>
@@ -97,11 +112,13 @@
             <template v-if="selectedDayOccurrences.length > 0">
               <div v-for="day in selectedDayOccurrences" :key="`${day.id}-${day.occurrence_start}`" class="jules-occurrence-item" @click="openEditJulesDayDialog(day)">
                 <div class="jules-occurrence-main">
-                  <span class="jules-occurrence-title">{{ day.title }}</span>
+                  <span class="jules-occurrence-title">{{ formatOccurrenceTitle(day) }}</span>
                   <span class="jules-occurrence-meta">{{ formatOccurrenceRange(day) }}</span>
                 </div>
                 <div class="jules-occurrence-actions">
-                  <span class="jules-occurrence-badge" :class="getJulesMarker(day.title)?.class">{{ getJulesMarker(day.title)?.label }}</span>
+                  <span class="jules-occurrence-badge" :class="getOccurrenceBadge(day).className">
+                    {{ getOccurrenceBadge(day).label }}
+                  </span>
                   <v-btn class="action-btn" size="x-small" density="comfortable" rounded="lg" @click.stop="requestDeleteJulesDay(day)">Delete</v-btn>
                 </div>
               </div>
@@ -152,6 +169,13 @@ import { VCard, VCardTitle, VCardText, VCardActions, VDialog, VBtn, VSpacer, VSe
 import JulesDayDialog from '@/components/JulesDayDialog.vue';
 import api from '@/services/api';
 import {
+  JULES_TITLE_GENERAL,
+  buildJulesMarker,
+  describeJulesDay,
+  isNoJulesTitle,
+  normalizeJulesTitle,
+} from '@/utils/jules';
+import {
   addDays,
   diffDays,
   formatDateString,
@@ -166,6 +190,8 @@ type JulesDayItem = {
   title: string;
   start: string;
   end: string;
+  coming_time?: string | null;
+  leaving_time?: string | null;
   description?: string | null;
   recurrence_type?: 'none' | 'daily' | 'weekly' | 'biweekly' | 'annually' | 'custom';
   recurrence_interval?: number | null;
@@ -186,6 +212,8 @@ type JulesDayForm = {
   title: string;
   start: string;
   end: string;
+  coming_time: string;
+  leaving_time: string;
   description: string;
   recurrence_type: 'none' | 'daily' | 'weekly' | 'biweekly' | 'annually' | 'custom';
   recurrence_interval: number;
@@ -292,9 +320,11 @@ const selectedDayOccurrences = computed<JulesDayOccurrence[]>(() => {
 function getDefaultJulesForm(date?: string): JulesDayForm {
   const initialDate = date || formatDateString(new Date());
   return {
-    title: 'Jules Day',
+    title: JULES_TITLE_GENERAL,
     start: initialDate,
     end: initialDate,
+    coming_time: '',
+    leaving_time: '',
     description: '',
     recurrence_type: 'none',
     recurrence_interval: 1,
@@ -313,6 +343,38 @@ function formatOccurrenceRange(day: JulesDayOccurrence): string {
   return start === end ? formatDisplayDate(start) : `${formatDisplayDate(start)} - ${formatDisplayDate(end)}`;
 }
 
+function formatOccurrenceTitle(day: JulesDayOccurrence): string {
+  const normalizedTitle = normalizeJulesTitle(day.title);
+  const duration = Math.max(1, diffDays(day.start, day.end) + 1);
+  const occurrenceEnd = addDays(day.occurrence_start, duration - 1);
+  const isStartDay = day.occurrence_date === day.occurrence_start;
+  const isEndDay = day.occurrence_date === occurrenceEnd;
+
+  if (isNoJulesTitle(normalizedTitle)) {
+    if (isStartDay && day.leaving_time) {
+      return describeJulesDay(JULES_TITLE_GENERAL, null, day.leaving_time);
+    }
+    if (isEndDay && day.coming_time) {
+      return describeJulesDay(JULES_TITLE_GENERAL, day.coming_time, null);
+    }
+    return describeJulesDay(normalizedTitle);
+  }
+
+  if (isStartDay && isEndDay) {
+    return describeJulesDay(normalizedTitle, day.coming_time, day.leaving_time);
+  }
+
+  if (isStartDay && day.coming_time) {
+    return describeJulesDay(normalizedTitle, day.coming_time, null);
+  }
+
+  if (isEndDay && day.leaving_time) {
+    return describeJulesDay(normalizedTitle, null, day.leaving_time);
+  }
+
+  return normalizedTitle;
+}
+
 function friendlyJulesLoadError(error: any) {
   const message = String(error?.response?.data?.message || '');
   if (message.includes('SQLSTATE[42S02]') || message.includes('doesn\'t exist')) {
@@ -322,24 +384,65 @@ function friendlyJulesLoadError(error: any) {
   return message || 'Unable to load Jules Days.';
 }
 
-function getJulesMarker(titleOrDate: string) {
-  if (titleOrDate === 'No Jules Day') {
-    return { label: 'J', class: 'jules-marker--no-jules' };
-  }
-  if (titleOrDate === 'Jules Day') {
-    return { label: 'J', class: 'jules-marker--jules' };
-  }
-
-  const matchingDays = julesDays.value.filter((item) => occursOnDate(item, titleOrDate));
-  if (matchingDays.some((day) => day.title === 'No Jules Day')) {
-    return { label: 'J', class: 'jules-marker--no-jules' };
-  }
-
-  if (matchingDays.length === 0) {
-    return null;
+function getOccurrenceBadge(day: JulesDayOccurrence) {
+  if (isNoJulesTitle(day.title)) {
+    const duration = Math.max(1, diffDays(day.start, day.end) + 1);
+    const occurrenceEnd = addDays(day.occurrence_start, duration - 1);
+    if (day.occurrence_date === day.occurrence_start && day.leaving_time) {
+      return buildJulesMarker('leaving', day.leaving_time);
+    }
+    if (day.occurrence_date === occurrenceEnd && day.coming_time) {
+      return buildJulesMarker('coming', day.coming_time);
+    }
+    return buildJulesMarker('no-jules');
   }
 
-  return { label: 'J', class: 'jules-marker--jules' };
+  if (day.occurrence_date === day.occurrence_start && day.coming_time) {
+    return buildJulesMarker('coming', day.coming_time);
+  }
+
+  const duration = Math.max(1, diffDays(day.start, day.end) + 1);
+  const occurrenceEnd = addDays(day.occurrence_start, duration - 1);
+  if (day.occurrence_date === occurrenceEnd && day.leaving_time) {
+    return buildJulesMarker('leaving', day.leaving_time);
+  }
+
+  return buildJulesMarker('jules');
+}
+
+function getJulesMarkers(date: string) {
+  const markers = julesDays.value
+    .filter((item) => occursOnDate(item, date))
+    .flatMap((item) => {
+      const normalizedTitle = normalizeJulesTitle(item.title);
+      const occurrenceStart = getOccurrenceStartDate(item, date) || item.start;
+      const duration = Math.max(1, diffDays(item.start, item.end) + 1);
+      const occurrenceEnd = addDays(occurrenceStart, duration - 1);
+
+      if (isNoJulesTitle(normalizedTitle)) {
+        if (date === occurrenceStart && item.leaving_time) {
+          return [buildJulesMarker('leaving', item.leaving_time)];
+        }
+        if (date === occurrenceEnd && item.coming_time) {
+          return [buildJulesMarker('coming', item.coming_time)];
+        }
+        return [buildJulesMarker('no-jules')];
+      }
+
+      const nextMarkers = [];
+
+      if (date === occurrenceStart && item.coming_time) {
+        nextMarkers.push(buildJulesMarker('coming', item.coming_time));
+      }
+
+      if (occurrenceEnd !== occurrenceStart && date === occurrenceEnd && item.leaving_time) {
+        nextMarkers.push(buildJulesMarker('leaving', item.leaving_time));
+      }
+
+      return nextMarkers.length > 0 ? nextMarkers : [buildJulesMarker('jules')];
+    });
+
+  return markers.sort((a, b) => a.order - b.order).slice(0, 2);
 }
 
 function openMonthYearDialog() {
@@ -391,9 +494,11 @@ function openEditJulesDayDialog(day: JulesDayOccurrence) {
   selectedOccurrence.value = day;
   formError.value = '';
   julesForm.value = {
-    title: day.title,
+    title: normalizeJulesTitle(day.title),
     start: day.start,
     end: day.end,
+    coming_time: day.coming_time || '',
+    leaving_time: day.leaving_time || '',
     description: day.description || '',
     recurrence_type: day.recurrence_type || 'none',
     recurrence_interval: day.recurrence_interval || 1,
@@ -425,6 +530,9 @@ async function saveJulesDay() {
   try {
     const payload = {
       ...julesForm.value,
+      title: normalizeJulesTitle(julesForm.value.title),
+      coming_time: julesForm.value.coming_time || null,
+      leaving_time: julesForm.value.leaving_time || null,
       recurrence_end_date: julesForm.value.recurrence_end_type === 'on' ? julesForm.value.recurrence_end_date : null,
       recurrence_occurrences: julesForm.value.recurrence_end_type === 'after' ? julesForm.value.recurrence_occurrences : null,
       recurrence_days_of_week: julesForm.value.recurrence_unit === 'week' ? julesForm.value.recurrence_days_of_week : [],
@@ -649,6 +757,13 @@ defineExpose({ refresh: loadJulesDays });
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  gap: 4px;
+}
+
+.jules-markers {
+  display: inline-grid;
+  gap: 3px;
+  justify-items: end;
 }
 
 .date-label {
@@ -663,14 +778,15 @@ defineExpose({ refresh: loadJulesDays });
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
+  min-width: 16px;
   height: 16px;
+  padding: 0 4px;
   margin-left: auto;
   border-radius: 999px;
   background: #16a34a;
   color: #ffffff;
   font-weight: 900;
-  font-size: 10px;
+  font-size: 8px;
   line-height: 1;
 }
 
@@ -678,13 +794,68 @@ defineExpose({ refresh: loadJulesDays });
   background: #dc2626;
 }
 
+.jules-marker--jules {
+  background: #16a34a;
+}
+
+.jules-marker--coming {
+  background: #60a5fa;
+}
+
+.jules-marker--leaving {
+  background: #f87171;
+}
+
+.calendar-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin: 8px 2px 2px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #64748b;
+  min-width: 0;
+}
+
+.legend-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 8px;
+  line-height: 1;
+}
+
+.day-view-card {
+  width: min(92vw, 620px);
+  border-radius: 20px;
+}
+
 .day-title-row {
-  padding: 10px 10px 8px;
+  padding: 14px 14px 10px;
+  margin: 0;
+}
+
+.day-view-card.app-modal-card .day-title-row,
+.day-view-card.app-modal-card .day-title-row *,
+.day-view-card.app-modal-card .day-title-row span {
+  color: #0f172a !important;
 }
 
 .day-view-content {
   display: grid;
   gap: 10px;
+  padding: 0 14px;
 }
 
 .jules-occurrence-item {
@@ -723,21 +894,32 @@ defineExpose({ refresh: loadJulesDays });
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
+  min-width: 24px;
   height: 24px;
+  padding: 0 8px;
   border-radius: 999px;
   background: #16a34a;
   color: #ffffff;
   font-weight: 900;
-  font-size: 12px;
+  font-size: 10px;
+  line-height: 1;
 }
 
 .jules-occurrence-badge.jules-marker--no-jules {
   background: #dc2626;
 }
 
+.jules-occurrence-badge.jules-marker--coming {
+  background: #60a5fa;
+}
+
+.jules-occurrence-badge.jules-marker--leaving {
+  background: #f87171;
+}
+
 .day-view-actions {
-  padding-top: 0;
+  padding: 10px 14px 14px;
+  margin: 0;
 }
 
 .helper-copy {

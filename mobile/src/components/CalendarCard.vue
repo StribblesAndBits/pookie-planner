@@ -80,14 +80,23 @@
           <template v-if="cell.date">
             <div class="date-row">
               <span class="date-label">{{ cell.dayNumber }}</span>
-              <span v-if="getJulesMarker(cell.date)" class="jules-marker" :class="getJulesMarker(cell.date)?.class">{{ getJulesMarker(cell.date)?.label }}</span>
+              <div v-if="getJulesMarkers(cell.date).length > 0" class="jules-markers">
+                <span
+                  v-for="(marker, markerIndex) in getJulesMarkers(cell.date)"
+                  :key="`${cell.date}-marker-${markerIndex}`"
+                  class="jules-marker"
+                  :class="marker.className"
+                >
+                  {{ marker.label }}
+                </span>
+              </div>
             </div>
 
             <div
               v-for="(event, eventIndex) in getVisibleEvents(cell.date)"
               :key="eventIndex"
               class="event-item"
-              :style="getEventStyle()"
+              :style="getEventStyle(event)"
             >
               {{ event.title }}
             </div>
@@ -97,6 +106,12 @@
             </div>
           </template>
         </div>
+      </div>
+      <div class="calendar-legend">
+        <span class="legend-item"><span class="legend-dot jules-marker--jules">J</span> Jules day</span>
+        <span class="legend-item"><span class="legend-dot jules-marker--coming">J</span> Jules arriving</span>
+        <span class="legend-item"><span class="legend-dot jules-marker--leaving">J</span> Jules leaving</span>
+        <span class="legend-item"><span class="legend-dot jules-marker--no-jules">J</span> No Jules day</span>
       </div>
 
       <!-- Day View Dialog -->
@@ -122,18 +137,31 @@
                   :style="{ top: `${(slot / 48) * 100}%` }"
                 />
                 <div
-                  v-for="event in dayViewLaneEvents"
-                  :key="event.id"
-                  class="timeline-event"
-                  :style="[getTimelineEventStyle(event), getTimelineColumnStyle(event)]"
-                  @click="openEventFromDayView(event)"
+                  v-for="entry in dayViewLaneEntries"
+                  :key="entry.key"
+                  class="timeline-event timeline-event--clickable"
+                  :style="[getTimelineEntryStyle(entry), getTimelineColumnStyle(entry)]"
+                  @click="openDayViewEntry(entry)"
                 >
-                  <div class="timeline-event-title">{{ event.title }}</div>
+                  <div class="timeline-event-title">{{ entry.title }}</div>
+                  <div v-if="entry.note" class="timeline-event-note">{{ entry.note }}</div>
                 </div>
               </div>
             </div>
-            <div v-if="dayViewLaneEvents.length === 0" class="no-events">
-              No events for this day.
+            <div v-if="dayViewJulesEntries.length > 0" class="day-jules-list">
+              <div
+                v-for="entry in dayViewJulesEntries"
+                :key="entry.key"
+                class="timeline-event timeline-event--inline timeline-event--jules"
+                :class="`timeline-event--${entry.variant}`"
+                :style="getJulesEntryStyle(entry)"
+              >
+                <div class="timeline-event-title">{{ entry.title }}</div>
+                <div class="timeline-event-note">{{ entry.note }}</div>
+              </div>
+            </div>
+            <div v-else-if="dayViewLaneEntries.length === 0" class="no-events">
+              No events or Jules days for this date.
             </div>
           </v-card-text>
           <v-card-actions class="day-view-actions">
@@ -155,7 +183,7 @@
                 <strong>Repeats:</strong> {{ recurrenceSummaryForEvent(selectedEvent) }}
               </p>
               <p v-if="selectedEvent.description"><strong>Description:</strong> {{ selectedEvent.description }}</p>
-              <div class="event-color-preview" :style="{ backgroundColor: getColorValue(getCurrentUserColor()) }">
+              <div class="event-color-preview" :style="{ backgroundColor: getColorValue(getEventColor(selectedEvent)) }">
                 <span class="event-color-preview-name">{{ eventCreatorLabel }}</span>
               </div>
             </div>
@@ -315,11 +343,17 @@ import {
 import { useAuth } from '@/composables/useAuth';
 import api from '@/services/api';
 import DatePickerField from '@/components/DatePickerField.vue';
-import { occursOnDate } from '@/utils/recurrence';
+import { buildJulesMarker, isNoJulesTitle, normalizeJulesTitle } from '@/utils/jules';
+import { getOccurrenceStartDate, occursOnDate } from '@/utils/recurrence';
 
 type CalendarEvent = {
   id: number;
   user_id: number;
+  user?: {
+    id: number;
+    first_name: string;
+    color_preference?: string | null;
+  } | null;
   title: string;
   start: string;
   end: string;
@@ -362,9 +396,12 @@ type CalendarCell = {
 };
 
 type JulesDayRecord = {
+  id: number;
   title: string;
   start: string;
   end: string;
+  coming_time?: string | null;
+  leaving_time?: string | null;
   recurrence_type?: 'none' | 'daily' | 'weekly' | 'biweekly' | 'annually' | 'custom';
   recurrence_interval?: number | null;
   recurrence_unit?: 'day' | 'week' | 'month' | 'year' | null;
@@ -373,6 +410,29 @@ type JulesDayRecord = {
   recurrence_end_date?: string | null;
   recurrence_occurrences?: number | null;
   excluded_occurrences?: string[] | null;
+};
+
+type DayViewEventEntry = {
+  key: string;
+  title: string;
+  note: string;
+  startMinutes: number;
+  endMinutes: number;
+  color: string;
+  event?: CalendarEvent;
+};
+
+type DayViewEventLaneEntry = DayViewEventEntry & {
+  lane: number;
+  laneCount: number;
+};
+
+type DayViewJulesEntry = {
+  key: string;
+  title: string;
+  note: string;
+  variant: 'arriving' | 'normal' | 'leaving';
+  color: string;
 };
 
 const props = withDefaults(defineProps<{
@@ -399,7 +459,7 @@ function formatDisplayDate(dateStr: string): string {
 
   if (Number.isNaN(date.getTime())) return dateStr;
 
-  return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  return date.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 function parseDateOnly(dateStr: string): Date {
@@ -458,12 +518,12 @@ function getColorValue(color: string): string {
   return colors[color] || '#1976d2';
 }
 
-function getCurrentUserColor(): string {
-  return user.value?.color_preference || '#D6486B';
+function getEventColor(event: CalendarEvent): string {
+  return event.user?.color_preference || user.value?.color_preference || '#D6486B';
 }
 
-function getEventStyle() {
-  const colorValue = getCurrentUserColor();
+function getEventStyle(event: CalendarEvent) {
+  const colorValue = getEventColor(event);
   const bg = getColorValue(colorValue);
   const textColor = '#ffffff';
   return {
@@ -471,13 +531,6 @@ function getEventStyle() {
     color: textColor,
     borderLeftColor: bg,
   };
-}
-
-function getDayViewEventStyle() {
-  const colorValue = getCurrentUserColor();
-  const bg = getColorValue(colorValue);
-  const textColor = '#ffffff';
-  return { backgroundColor: bg, color: textColor, borderLeftColor: bg };
 }
 
 function getDefaultEventForm(date?: string): EventForm {
@@ -561,7 +614,11 @@ const yearPickerOptions = computed(() => {
 });
 
 const monthLabel = computed(() => displayMonth.value.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
-const eventCreatorLabel = computed(() => user.value?.first_name || 'User');
+const eventCreatorLabel = computed(() => {
+  if (!selectedEvent.value) return 'User';
+  if (selectedEvent.value.user?.first_name) return selectedEvent.value.user.first_name;
+  return selectedEvent.value.user_id === user.value?.id ? 'You' : 'User';
+});
 const isCurrentDisplayMonth = computed(() => {
   const now = new Date();
   return displayMonth.value.getFullYear() === now.getFullYear()
@@ -578,19 +635,29 @@ const dayViewEvents = computed(() => {
   });
 });
 
-type TimelineLaneEvent = CalendarEvent & { lane: number; laneCount: number };
-
 const halfHourMarks = computed(() => Array.from({ length: 48 }, (_, index) => index));
 
-const dayViewLaneEvents = computed<TimelineLaneEvent[]>(() => {
-  const eventsForDay = dayViewEvents.value;
+const dayViewEventEntries = computed<DayViewEventEntry[]>(() => {
+  const selectedDate = selectedDayDate.value;
+  if (!selectedDate) return [];
+
+  return dayViewEvents.value.map((event) => ({
+    key: `event-${event.id}-${event.occurrence_date || selectedDate}`,
+    title: event.title,
+    note: formatEventTimeRange(event),
+    startMinutes: event.all_day ? 0 : parseTimeToMinutes(event.start_time),
+    endMinutes: event.all_day ? 1440 : Math.max(parseTimeToMinutes(event.end_time), parseTimeToMinutes(event.start_time) + 15),
+    color: getColorValue(getEventColor(event)),
+    event,
+  })).sort((a, b) => a.startMinutes - b.startMinutes || a.endMinutes - b.endMinutes || a.title.localeCompare(b.title));
+});
+
+const dayViewLaneEntries = computed<DayViewEventLaneEntry[]>(() => {
   const activeLaneEndTimes: number[] = [];
 
-  return eventsForDay.map((event) => {
-    const startMinutes = parseTimeToMinutes(event.start_time);
-    const endMinutes = Math.max(parseTimeToMinutes(event.end_time), startMinutes + 15);
-
-    let lane = activeLaneEndTimes.findIndex((laneEnd) => laneEnd <= startMinutes);
+  return dayViewEventEntries.value.map((entry) => {
+    const endMinutes = Math.max(entry.endMinutes, entry.startMinutes + 15);
+    let lane = activeLaneEndTimes.findIndex((laneEnd) => laneEnd <= entry.startMinutes);
     if (lane === -1) {
       lane = activeLaneEndTimes.length;
       activeLaneEndTimes.push(endMinutes);
@@ -598,17 +665,17 @@ const dayViewLaneEvents = computed<TimelineLaneEvent[]>(() => {
       activeLaneEndTimes[lane] = endMinutes;
     }
 
-    return { ...event, lane, laneCount: 1 };
+    return { ...entry, lane, laneCount: 1 };
   });
 });
 
 const dayViewMaxLaneCount = computed(() => {
-  if (!dayViewLaneEvents.value.length) return 1;
+  if (!dayViewLaneEntries.value.length) return 1;
   const points: Array<{ minute: number; delta: number }> = [];
 
-  dayViewLaneEvents.value.forEach((event) => {
-    const start = parseTimeToMinutes(event.start_time);
-    const end = Math.max(parseTimeToMinutes(event.end_time), start + 15);
+  dayViewLaneEntries.value.forEach((entry) => {
+    const start = entry.startMinutes;
+    const end = Math.max(entry.endMinutes, start + 15);
     points.push({ minute: start, delta: 1 }, { minute: end, delta: -1 });
   });
 
@@ -622,6 +689,22 @@ const dayViewMaxLaneCount = computed(() => {
   });
 
   return maxActive;
+});
+
+const dayViewJulesEntries = computed<DayViewJulesEntry[]>(() => {
+  const selectedDate = selectedDayDate.value;
+  if (!selectedDate) return [];
+
+  const variantOrder: Record<DayViewJulesEntry['variant'], number> = {
+    arriving: 0,
+    normal: 1,
+    leaving: 2,
+  };
+
+  return props.julesDays
+    .filter((item) => occursOnDate(item, selectedDate))
+    .flatMap((item) => buildJulesDayEntries(item, selectedDate))
+    .sort((a, b) => variantOrder[a.variant] - variantOrder[b.variant] || a.title.localeCompare(b.title));
 });
 
 const calendarRowCount = computed(() => calendarCells.value.length / 7);
@@ -672,13 +755,76 @@ function getHiddenEventCount(date: string) {
   return total > 3 ? total - 2 : 0;
 }
 
-function getJulesMarker(date: string) {
-  const matchingDays = props.julesDays.filter((item) => occursOnDate(item, date));
-  if (matchingDays.some((day) => day.title === 'No Jules Day')) {
-    return { label: 'J', class: 'jules-marker--no-jules' };
+function getJulesMarkers(date: string) {
+  const markers = props.julesDays
+    .filter((item) => occursOnDate(item, date))
+    .flatMap((item) => {
+      const normalizedTitle = normalizeJulesTitle(item.title);
+      const occurrenceStart = getOccurrenceStartDate(item, date) || item.start;
+      const duration = Math.max(1, diffDays(item.start, item.end) + 1);
+      const occurrenceEnd = addDays(occurrenceStart, duration - 1);
+
+      if (isNoJulesTitle(normalizedTitle)) {
+        if (date === occurrenceStart && item.leaving_time) {
+          return [buildJulesMarker('leaving', item.leaving_time)];
+        }
+        if (date === occurrenceEnd && item.coming_time) {
+          return [buildJulesMarker('coming', item.coming_time)];
+        }
+        return [buildJulesMarker('no-jules')];
+      }
+
+      const nextMarkers = [];
+
+      if (date === occurrenceStart && item.coming_time) {
+        nextMarkers.push(buildJulesMarker('coming', item.coming_time));
+      }
+
+      if (occurrenceEnd !== occurrenceStart && date === occurrenceEnd && item.leaving_time) {
+        nextMarkers.push(buildJulesMarker('leaving', item.leaving_time));
+      }
+
+      return nextMarkers.length > 0 ? nextMarkers : [buildJulesMarker('jules')];
+    });
+
+  return markers.sort((a, b) => a.order - b.order).slice(0, 2);
+}
+
+function buildJulesDayEntries(item: JulesDayRecord, date: string): DayViewJulesEntry[] {
+  const normalizedTitle = normalizeJulesTitle(item.title);
+  const occurrenceStart = getOccurrenceStartDate(item, date) || item.start;
+  const duration = Math.max(1, diffDays(item.start, item.end) + 1);
+  const occurrenceEnd = addDays(occurrenceStart, duration - 1);
+
+  if (date === occurrenceStart && item.coming_time) {
+    return [{
+      key: `jules-${item.id}-${date}-arriving`,
+      title: 'Jules Arriving',
+      note: formatTimeLabel(item.coming_time),
+      variant: 'arriving',
+      color: '#3b82f6',
+    }];
   }
-  if (matchingDays.length === 0) return null;
-  return { label: 'J', class: 'jules-marker--jules' };
+
+  if (date === occurrenceEnd && item.leaving_time) {
+    return [{
+      key: `jules-${item.id}-${date}-leaving`,
+      title: 'Jules Leaving',
+      note: formatTimeLabel(item.leaving_time),
+      variant: 'leaving',
+      color: '#f87171',
+    }];
+  }
+
+  if (isNoJulesTitle(normalizedTitle)) return [];
+
+  return [{
+    key: `jules-${item.id}-${date}-jules`,
+    title: 'Jules Day',
+    note: 'All day',
+    variant: 'normal',
+    color: '#16a34a',
+  }];
 }
 
 function parseTimeToMinutes(time: string) {
@@ -704,6 +850,28 @@ function formatHourLabel(hour: number) {
 function formatEventTimeRange(event: CalendarEvent) {
   if (event.all_day) return 'All day';
   return `${formatTimeLabel(event.start_time)} - ${formatTimeLabel(event.end_time)}`;
+}
+
+function getTimelineEntryStyle(entry: DayViewEventEntry) {
+  const topPct = (entry.startMinutes / 1440) * 100;
+  const durationMinutes = Math.max(entry.endMinutes - entry.startMinutes, 15);
+  const heightPct = Math.max((durationMinutes / 1440) * 100, 6);
+
+  return {
+    backgroundColor: entry.color,
+    color: '#ffffff',
+    borderLeftColor: entry.color,
+    top: `${topPct}%`,
+    height: `${heightPct}%`,
+  };
+}
+
+function getJulesEntryStyle(entry: DayViewJulesEntry) {
+  return {
+    backgroundColor: entry.color,
+    color: '#ffffff',
+    borderLeftColor: entry.color === '#16a34a' ? '#15803d' : entry.variant === 'arriving' ? '#2563eb' : '#ef4444',
+  };
 }
 
 function recurrenceSummaryFromForm(form: EventForm): string {
@@ -853,32 +1021,22 @@ function eventOccursOnDate(event: CalendarEvent, date: string): boolean {
   return getOccurrenceStartDateForEvent(event, date) !== null;
 }
 
-function getTimelineEventStyle(event: CalendarEvent) {
-  const startMinutes = parseTimeToMinutes(event.start_time);
-  const endMinutes = Math.max(parseTimeToMinutes(event.end_time), startMinutes + 15);
-  const durationMinutes = endMinutes - startMinutes;
-  const topPct = (startMinutes / 1440) * 100;
-  const heightPct = Math.max((durationMinutes / 1440) * 100, 4);
-  const baseStyle = getDayViewEventStyle() as Record<string, string>;
-
-  return {
-    ...baseStyle,
-    top: `${topPct}%`,
-    height: `${heightPct}%`,
-  };
-}
-
-function getTimelineColumnStyle(event: TimelineLaneEvent) {
+function getTimelineColumnStyle(entry: DayViewEventLaneEntry) {
   const laneCount = Math.max(dayViewMaxLaneCount.value, 1);
   const width = 100 / laneCount;
   return {
     width: `calc(${width}% - 8px)`,
-    left: `calc(${(event.lane * 100) / laneCount}% + 4px)`,
+    left: `calc(${(entry.lane * 100) / laneCount}% + 4px)`,
   };
 }
 
 function canManageEvent(event: CalendarEvent) {
   return event.user_id === user.value?.id;
+}
+
+function openDayViewEntry(entry: DayViewEventEntry) {
+  if (!entry.event) return;
+  openEventFromDayView(entry.event);
 }
 
 function openEventFromDayView(event: CalendarEvent) {
@@ -1281,25 +1439,75 @@ onMounted(async () => {
   align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 6px;
+  gap: 4px;
+}
+
+.jules-markers {
+  display: inline-grid;
+  gap: 3px;
+  justify-items: end;
 }
 
 .jules-marker {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
+  min-width: 16px;
   height: 16px;
+  padding: 0 4px;
   margin-left: auto;
   border-radius: 999px;
   background: #16a34a;
   color: #ffffff;
   font-weight: 900;
-  font-size: 10px;
+  font-size: 8px;
   line-height: 1;
 }
 
 .jules-marker--no-jules {
   background: #dc2626;
+}
+
+.jules-marker--jules {
+  background: #16a34a;
+}
+
+.jules-marker--coming {
+  background: #60a5fa;
+}
+
+.jules-marker--leaving {
+  background: #f87171;
+}
+
+.calendar-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin: 8px 2px 2px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #64748b;
+  min-width: 0;
+}
+
+.legend-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 8px;
+  line-height: 1;
 }
 
 .event-item {
@@ -1412,11 +1620,30 @@ onMounted(async () => {
   border-left: 4px solid;
   border-radius: 6px;
   padding: 10px 10px 9px;
-  cursor: pointer;
+  cursor: default;
   overflow: hidden;
   box-sizing: border-box;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+}
+
+.timeline-event--clickable {
+  cursor: pointer;
+}
+
+.timeline-event--jules {
+  border-left-style: solid;
+}
+
+.timeline-event--inline {
+  position: relative;
+  top: auto !important;
+  left: auto !important;
+  width: 100% !important;
+  height: auto !important;
 }
 
 .timeline-event-title {
@@ -1426,6 +1653,21 @@ onMounted(async () => {
   white-space: normal;
   margin: 0;
   color: #ffffff !important;
+}
+
+.timeline-event-note {
+  font-size: 11px;
+  line-height: 1.1;
+  font-weight: 600;
+  opacity: 0.92;
+  color: #ffffff;
+}
+
+.day-jules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .time-row {
@@ -1619,7 +1861,8 @@ onMounted(async () => {
   flex: 1 1 auto;
   padding: 10px 10px 0;
   gap: 10px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .day-view-actions {
@@ -1705,7 +1948,8 @@ onMounted(async () => {
      padding: 10px 10px 0;
      gap: 10px;
      flex: 1 1 auto;
-     overflow: hidden;
+     overflow-y: auto;
+     overflow-x: hidden;
    }
 
    .day-view-actions {
@@ -1730,6 +1974,15 @@ onMounted(async () => {
 
    .timeline-event-title {
      font-size: 11px;
+   }
+
+   .day-jules-list {
+     gap: 6px;
+     margin-top: 10px;
+   }
+
+   .timeline-event--inline {
+     padding: 8px 10px;
    }
 
    .event-popover-card {
@@ -1801,7 +2054,8 @@ onMounted(async () => {
      padding: 10px 10px 0;
      gap: 10px;
      flex: 1 1 auto;
-     overflow: hidden;
+     overflow-y: auto;
+     overflow-x: hidden;
    }
 
    .day-view-actions {

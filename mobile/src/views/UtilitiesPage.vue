@@ -135,8 +135,8 @@ function formatCurrency(amount: string) {
 
 function formatDueDate(date: string) {
   return new Date(`${date}T00:00:00`).toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
+    weekday: 'short',
+    month: 'short',
     day: 'numeric',
     year: 'numeric',
   });

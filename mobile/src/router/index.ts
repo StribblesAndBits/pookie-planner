@@ -7,6 +7,7 @@ import ForgotPasswordPage from '../views/ForgotPasswordPage.vue';
 import ProfilePage from '../views/ProfilePage.vue';
 import UtilitiesPage from '../views/UtilitiesPage.vue';
 import JulesPage from '../views/JulesPage.vue';
+import { useAuth } from '@/composables/useAuth';
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -31,22 +32,26 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/dashboard',
     name: 'Dashboard',
-    component: DashboardPage
+    component: DashboardPage,
+    meta: { requiresAuth: true }
   },
   {
     path: '/profile',
     name: 'Profile',
-    component: ProfilePage
+    component: ProfilePage,
+    meta: { requiresAuth: true }
   },
   {
     path: '/utilities',
     name: 'Utilities',
-    component: UtilitiesPage
+    component: UtilitiesPage,
+    meta: { requiresAuth: true }
   },
   {
     path: '/jules',
     name: 'Jules',
-    component: JulesPage
+    component: JulesPage,
+    meta: { requiresAuth: true }
   }
 ]
 
@@ -56,6 +61,7 @@ const router = createRouter({
 })
 
 const APP_TITLE = 'Pookie Pls';
+const PUBLIC_ONLY_PATHS = new Set(['/login', '/register', '/forgot-password']);
 
 function formatRouteTitle(name?: string): string {
   if (!name) {
@@ -72,6 +78,35 @@ function formatRouteTitle(name?: string): string {
 
 router.afterEach((to) => {
   document.title = formatRouteTitle(typeof to.name === 'string' ? to.name : undefined);
+});
+
+router.beforeEach(async (to) => {
+  const { isAuthenticated, user, fetchUser } = useAuth();
+
+  if (to.meta.requiresAuth) {
+    if (!isAuthenticated.value) return '/login';
+    if (!user.value) {
+      try {
+        await fetchUser();
+      } catch {
+        return '/login';
+      }
+    }
+    return true;
+  }
+
+  if (PUBLIC_ONLY_PATHS.has(to.path) && isAuthenticated.value) {
+    if (!user.value) {
+      try {
+        await fetchUser();
+      } catch {
+        return true;
+      }
+    }
+    return '/dashboard';
+  }
+
+  return true;
 });
 
 export default router

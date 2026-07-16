@@ -174,6 +174,7 @@ async function handleLogout() {
   height: 44px;
   font-weight: 700;
   font-size: 16px;
+  line-height: 1;
   border-radius: 50%;
   border: none;
   cursor: pointer;
@@ -182,6 +183,8 @@ async function handleLogout() {
   justify-content: center;
   transition: background-color 0.2s;
   flex-shrink: 0;
+  background-color: var(--app-button-bg);
+  color: var(--app-button-text);
 }
 
 .initials-button:hover {
