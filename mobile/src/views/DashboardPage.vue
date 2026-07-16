@@ -6,7 +6,7 @@
       <div class="dashboard-content">
         <div class="dashboard-container">
           <div class="calendar-section">
-            <CalendarCard ref="calendarCardRef" :jules-days="julesDays" />
+            <CalendarCard ref="calendarCardRef" :jules-days="julesDays" :utilities="utilities" />
           </div>
 
           <v-card class="utilities-summary-card">
@@ -27,7 +27,13 @@
               <template v-else-if="currentMonthUnpaidUtilities.length > 0">
                 <p class="utilities-summary-copy">Unpaid utilities this month:</p>
                 <ul class="utility-list">
-                  <li v-for="utility in currentMonthUnpaidUtilities" :key="utility.id" class="utility-item">
+                  <li
+                    v-for="utility in currentMonthUnpaidUtilities"
+                    :key="utility.id"
+                    class="utility-item utility-item--bill"
+                    :class="`utility-item--${normalizeUtilityCurrency(utility.utility_currency)}`"
+                    :style="getUtilityItemStyle(utility.utility_currency)"
+                  >
                     <div class="utility-main">
                       <span class="utility-name">{{ utility.name }}</span>
                       <span class="utility-meta">{{ formatDueDate(utility.due_date) }} • {{ formatUtilityAmount(utility.amount, utility.utility_currency) }}</span>
@@ -83,6 +89,7 @@
               </template>
             </v-card-text>
           </v-card>
+
         </div>
       </div>
     </ion-content>
@@ -418,6 +425,14 @@ function formatJulesOccurrenceDate(day: JulesDayItem & { occurrence_date: string
   });
 }
 
+function getUtilityItemStyle(currency?: 'dollars' | 'kisses' | null) {
+  const color = normalizeUtilityCurrency(currency) === 'kisses' ? '#ec4899' : '#3b82f6';
+  return {
+    backgroundColor: '#ffffff',
+    border: `1px solid ${color}`,
+  };
+}
+
 function friendlyJulesLoadError(error: any) {
   const message = String(error?.response?.data?.message || '');
   if (message.includes('SQLSTATE[42S02]') || message.includes('doesn\'t exist')) {
@@ -565,6 +580,18 @@ onIonViewWillEnter(async () => {
   border-radius: 10px;
   padding: 8px 10px;
   background: #f8fbff;
+}
+
+.utility-item--bill {
+  background: #ffffff;
+}
+
+.utility-item--dollars {
+  border-color: #3b82f6;
+}
+
+.utility-item--kisses {
+  border-color: #ec4899;
 }
 
 .utility-main {

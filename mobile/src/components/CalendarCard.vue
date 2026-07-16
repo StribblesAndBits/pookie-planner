@@ -64,7 +64,7 @@
 
       <div
         class="calendar-grid"
-        :style="{ gridTemplateRows: `repeat(${calendarRowCount}, 74px)` }"
+        :style="{ gridTemplateRows: `repeat(${calendarRowCount}, var(--calendar-row-height))` }"
       >
         <div
           v-for="(cell, idx) in calendarCells"
@@ -92,17 +92,29 @@
               </div>
             </div>
 
-            <div
-              v-for="(event, eventIndex) in getVisibleEvents(cell.date)"
-              :key="eventIndex"
-              class="event-item"
-              :style="getEventStyle(event)"
-            >
-              {{ event.title }}
-            </div>
+            <div class="calendar-day-content">
+              <div
+                v-for="entry in getVisibleCalendarEntries(cell.date)"
+                :key="entry.key"
+                :class="entry.kind === 'event' ? 'event-item' : 'calendar-utility-item'"
+                :style="entry.kind === 'event'
+                  ? getEventStyle(entry.event)
+                  : getUtilityCalendarEntryStyle(entry)"
+              >
+                <template v-if="entry.kind === 'event'">
+                  {{ entry.event.title }}
+                </template>
+                <template v-else>
+                  <div class="calendar-utility-row">
+                    <span class="calendar-utility-title">{{ entry.title }}</span>
+                    <span class="calendar-utility-note">{{ entry.note }}</span>
+                  </div>
+                </template>
+              </div>
 
-            <div v-if="getHiddenEventCount(cell.date) > 0" class="more-events">
-              +{{ getHiddenEventCount(cell.date) }} more events
+              <div v-if="getHiddenCalendarEntryCount(cell.date) > 0" class="more-events">
+                +{{ getHiddenCalendarEntryCount(cell.date) }} more
+              </div>
             </div>
           </template>
         </div>
@@ -160,8 +172,20 @@
                 <div class="timeline-event-note">{{ entry.note }}</div>
               </div>
             </div>
-            <div v-else-if="dayViewLaneEntries.length === 0" class="no-events">
-              No events or Jules days for this date.
+            <div v-if="dayViewUtilityEntries.length > 0" class="day-jules-list">
+              <div
+                v-for="entry in dayViewUtilityEntries"
+                :key="entry.key"
+                class="timeline-event timeline-event--inline timeline-event--utility"
+                :class="`timeline-event--utility-${entry.currency}`"
+                :style="getUtilityEntryStyle(entry)"
+              >
+                <div class="timeline-event-title">{{ entry.title }}</div>
+                <div class="timeline-event-note">{{ entry.note }}</div>
+              </div>
+            </div>
+            <div v-else-if="dayViewLaneEntries.length === 0 && dayViewJulesEntries.length === 0" class="no-events">
+              No events, Jules days, or bill reminders for this date.
             </div>
           </v-card-text>
           <v-card-actions class="day-view-actions">
@@ -344,6 +368,7 @@ import { useAuth } from '@/composables/useAuth';
 import api from '@/services/api';
 import DatePickerField from '@/components/DatePickerField.vue';
 import { buildJulesMarker, isNoJulesTitle, normalizeJulesTitle } from '@/utils/jules';
+import { formatUtilityAmount, normalizeUtilityCurrency } from '@/utils/utility';
 import { getOccurrenceStartDate, occursOnDate } from '@/utils/recurrence';
 
 type CalendarEvent = {
@@ -412,6 +437,15 @@ type JulesDayRecord = {
   excluded_occurrences?: string[] | null;
 };
 
+type UtilityRecord = {
+  id: number;
+  name: string;
+  due_date: string;
+  amount: string;
+  utility_currency?: 'dollars' | 'kisses' | null;
+  status: 'unpaid' | 'paid';
+};
+
 type DayViewEventEntry = {
   key: string;
   title: string;
@@ -435,10 +469,40 @@ type DayViewJulesEntry = {
   color: string;
 };
 
+type DayViewUtilityEntry = {
+  key: string;
+  title: string;
+  note: string;
+  currency: 'dollars' | 'kisses';
+};
+
+type CalendarUtilityEntry = {
+  id: number;
+  name: string;
+  amountLabel: string;
+  currency: 'dollars' | 'kisses';
+};
+
+type CalendarMonthEntry =
+  | {
+      key: string;
+      kind: 'event';
+      event: CalendarEvent;
+    }
+  | {
+      key: string;
+      kind: 'utility';
+      title: string;
+      note: string;
+      currency: 'dollars' | 'kisses';
+    };
+
 const props = withDefaults(defineProps<{
   julesDays?: JulesDayRecord[];
+  utilities?: UtilityRecord[];
 }>(), {
   julesDays: () => [],
+  utilities: () => [],
 });
 
 const { user } = useAuth();
@@ -707,6 +771,47 @@ const dayViewJulesEntries = computed<DayViewJulesEntry[]>(() => {
     .sort((a, b) => variantOrder[a.variant] - variantOrder[b.variant] || a.title.localeCompare(b.title));
 });
 
+const dayViewUtilityEntries = computed<DayViewUtilityEntry[]>(() => {
+  const selectedDate = selectedDayDate.value;
+  if (!selectedDate) return [];
+
+  return props.utilities
+    .filter((utility) => utility.status === 'unpaid' && utility.due_date === selectedDate)
+    .map((utility) => ({
+      key: `utility-${utility.id}-${selectedDate}`,
+      title: utility.name,
+      note: formatUtilityAmount(utility.amount, normalizeUtilityCurrency(utility.utility_currency)),
+      currency: normalizeUtilityCurrency(utility.utility_currency),
+    }))
+    .sort((a, b) => a.title.localeCompare(b.title));
+});
+
+const utilityEntriesByDate = computed(() => {
+  const entries = new Map<string, CalendarUtilityEntry[]>();
+
+  props.utilities
+    .filter((utility) => utility.status === 'unpaid')
+    .forEach((utility) => {
+      const date = utility.due_date;
+      const currency = normalizeUtilityCurrency(utility.utility_currency);
+      const list = entries.get(date) || [];
+      list.push({
+        id: utility.id,
+        name: utility.name,
+        amountLabel: formatUtilityAmount(utility.amount, currency),
+        currency,
+      });
+      entries.set(date, list);
+    });
+
+  entries.forEach((list, date) => {
+    list.sort((a, b) => a.name.localeCompare(b.name));
+    entries.set(date, list);
+  });
+
+  return entries;
+});
+
 const calendarRowCount = computed(() => calendarCells.value.length / 7);
 
 const calendarCells = computed(() => {
@@ -739,20 +844,41 @@ const calendarCells = computed(() => {
   return cells;
 });
 
+function getCalendarEntriesForDate(date: string) {
+  const entries: CalendarMonthEntry[] = getEventsForDate(date).map((event) => ({
+    key: `event-${event.id}-${date}`,
+    kind: 'event',
+    event,
+  }));
+
+  const utilityEntries = utilityEntriesByDate.value.get(date) || [];
+  utilityEntries.forEach((utility) => {
+    entries.push({
+      key: `utility-${utility.id}-${date}`,
+      kind: 'utility',
+      title: utility.name,
+      note: utility.amountLabel,
+      currency: utility.currency,
+    });
+  });
+
+  return entries.slice(0, 1);
+}
+
+function getVisibleCalendarEntries(date: string) {
+  return getCalendarEntriesForDate(date);
+}
+
+function getHiddenCalendarEntryCount(date: string) {
+  const total = getEventsForDate(date).length + (utilityEntriesByDate.value.get(date)?.length || 0);
+  return total > 1 ? total - 1 : 0;
+}
+
 function getEventsForDate(date: string) {
   return events.value
     .filter((event) => eventOccursOnDate(event, date))
     .map((event) => ({ ...event, occurrence_date: date }))
     .sort((a, b) => parseTimeToMinutes(a.start_time) - parseTimeToMinutes(b.start_time));
-}
-
-function getVisibleEvents(date: string) {
-  return getEventsForDate(date).slice(0, 2);
-}
-
-function getHiddenEventCount(date: string) {
-  const total = getEventsForDate(date).length;
-  return total > 3 ? total - 2 : 0;
 }
 
 function getJulesMarkers(date: string) {
@@ -872,6 +998,24 @@ function getJulesEntryStyle(entry: DayViewJulesEntry) {
     backgroundColor: entry.color,
     color: '#ffffff',
     borderLeftColor: entry.color === '#16a34a' ? '#15803d' : entry.variant === 'arriving' ? '#2563eb' : '#ef4444',
+  };
+}
+
+function getUtilityEntryStyle(entry: DayViewUtilityEntry) {
+  const color = entry.currency === 'kisses' ? '#ec4899' : '#3b82f6';
+  return {
+    backgroundColor: '#ffffff',
+    color,
+    border: `1px solid ${color}`,
+  };
+}
+
+function getUtilityCalendarEntryStyle(entry: Extract<CalendarMonthEntry, { kind: 'utility' }>) {
+  const color = entry.currency === 'kisses' ? '#ec4899' : '#3b82f6';
+  return {
+    backgroundColor: '#ffffff',
+    color,
+    border: `1px solid ${color}`,
   };
 }
 
@@ -1380,6 +1524,7 @@ onMounted(async () => {
   gap: 8px;
   flex: none;
   min-height: 0;
+  --calendar-row-height: 84px;
 }
 
 .calendar-cell {
@@ -1389,6 +1534,8 @@ onMounted(async () => {
    padding: 8px;
    background: #f8fbff;
    overflow: hidden;
+   display: flex;
+   flex-direction: column;
 }
 
 .calendar-grid .calendar-cell:nth-last-child(7) {
@@ -1423,6 +1570,10 @@ onMounted(async () => {
   opacity: 0.5;
 }
 
+.calendar-cell.other-month .calendar-utility-item {
+  opacity: 0.5;
+}
+
 .helper-copy {
   margin: 0;
   color: #64748b;
@@ -1441,6 +1592,14 @@ onMounted(async () => {
   justify-content: space-between;
   margin-bottom: 6px;
   gap: 4px;
+}
+
+.calendar-day-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .jules-markers {
@@ -1483,18 +1642,26 @@ onMounted(async () => {
 
 .calendar-legend {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(2, max-content);
   gap: 8px 12px;
-  margin: 8px 2px 2px;
+  width: fit-content;
+  margin: 8px auto 2px;
+  justify-content: center;
+  justify-items: start;
+  align-items: center;
 }
 
 .legend-item {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: 16px auto;
   align-items: center;
-  gap: 6px;
+  column-gap: 6px;
   font-size: 11px;
   color: #64748b;
   min-width: 0;
+  justify-content: start;
+  width: max-content;
+  text-align: left;
 }
 
 .legend-dot {
@@ -1522,7 +1689,8 @@ onMounted(async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   transition: all 0.2s ease;
-  margin-bottom: 4px;
+  margin-bottom: 0;
+  flex: 0 0 auto;
 }
 
 .event-item:hover {
@@ -1530,11 +1698,78 @@ onMounted(async () => {
   filter: brightness(0.96);
 }
 
+.calendar-utility-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 7px;
+  margin-bottom: 0;
+  border-radius: 5px;
+  background: #ffffff;
+  border-left: 3px solid #3b82f6;
+  box-sizing: border-box;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.calendar-utility-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.calendar-utility-item--kisses {
+  border-left-color: #ec4899;
+}
+
+.calendar-utility-item--dollars {
+  border-left-color: #3b82f6;
+}
+
+.calendar-utility-title {
+  flex: 1 1 auto;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #3b82f6;
+}
+
+.calendar-utility-item--kisses .calendar-utility-title,
+.calendar-utility-item--kisses .calendar-utility-note {
+  color: #ec4899;
+}
+
+.calendar-utility-item--dollars .calendar-utility-title,
+.calendar-utility-item--dollars .calendar-utility-note {
+  color: #3b82f6;
+}
+
+.calendar-utility-note {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .more-events {
-  padding: 2px 8px;
+  margin-top: auto;
+  padding: 4px 6px 2px;
   font-size: 11px;
   color: #666;
   font-style: italic;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 0 auto;
 }
 
 .event-color-preview {
@@ -1639,6 +1874,22 @@ onMounted(async () => {
   border-left-style: solid;
 }
 
+.timeline-event--utility {
+  border-left-style: solid;
+}
+
+.timeline-event--utility-kisses {
+  background-color: #ffffff;
+  color: #ec4899;
+  border-color: #ec4899;
+}
+
+.timeline-event--utility-dollars {
+  background-color: #ffffff;
+  color: #3b82f6;
+  border-color: #3b82f6;
+}
+
 .timeline-event--inline {
   position: relative;
   top: auto !important;
@@ -1662,6 +1913,16 @@ onMounted(async () => {
   font-weight: 600;
   opacity: 0.92;
   color: #ffffff;
+}
+
+.timeline-event--utility-kisses .timeline-event-title,
+.timeline-event--utility-kisses .timeline-event-note {
+  color: #ec4899 !important;
+}
+
+.timeline-event--utility-dollars .timeline-event-title,
+.timeline-event--utility-dollars .timeline-event-note {
+  color: #3b82f6 !important;
 }
 
 .day-jules-list {
@@ -1911,7 +2172,7 @@ onMounted(async () => {
 
    .calendar-grid {
      gap: 4px;
-     grid-template-rows: repeat(6, 78px);
+     --calendar-row-height: 88px;
    }
 
    .calendar-cell {
@@ -1928,12 +2189,28 @@ onMounted(async () => {
    .event-item {
      padding: 2px 4px;
      font-size: 10px;
-     margin-bottom: 2px;
+     margin-top: 2px;
      border-left: 2px solid;
    }
 
+   .calendar-utility-item {
+     padding: 2px 4px;
+   }
+
+   .calendar-utility-row {
+     gap: 6px;
+   }
+
+   .calendar-utility-title {
+     font-size: 10px;
+   }
+
+   .calendar-utility-note {
+     font-size: 9px;
+   }
+
    .more-events {
-     padding: 1px 4px;
+     padding: 3px 4px 1px;
      font-size: 9px;
    }
 
@@ -2019,6 +2296,7 @@ onMounted(async () => {
 
    .calendar-grid {
      gap: 3px;
+     --calendar-row-height: 92px;
    }
 
    .calendar-cell {
@@ -2034,12 +2312,28 @@ onMounted(async () => {
    .event-item {
      padding: 1px 3px;
      font-size: 9px;
-     margin-bottom: 1px;
+     margin-top: 2px;
      border-left: 1px solid;
    }
 
-   .more-events {
+   .calendar-utility-item {
      padding: 1px 3px;
+   }
+
+   .calendar-utility-row {
+     gap: 4px;
+   }
+
+   .calendar-utility-title {
+     font-size: 9px;
+   }
+
+   .calendar-utility-note {
+     font-size: 8px;
+   }
+
+   .more-events {
+     padding: 2px 3px 1px;
      font-size: 8px;
    }
 
