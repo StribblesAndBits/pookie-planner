@@ -795,8 +795,9 @@ function buildJulesDayEntries(item: JulesDayRecord, date: string): DayViewJulesE
   const occurrenceStart = getOccurrenceStartDate(item, date) || item.start;
   const duration = Math.max(1, diffDays(item.start, item.end) + 1);
   const occurrenceEnd = addDays(occurrenceStart, duration - 1);
+  const isMultiDay = occurrenceStart !== occurrenceEnd;
 
-  if (date === occurrenceStart && item.coming_time) {
+  if (isMultiDay && date === occurrenceStart && item.coming_time) {
     return [{
       key: `jules-${item.id}-${date}-arriving`,
       title: 'Jules Arriving',
@@ -806,7 +807,7 @@ function buildJulesDayEntries(item: JulesDayRecord, date: string): DayViewJulesE
     }];
   }
 
-  if (date === occurrenceEnd && item.leaving_time) {
+  if (isMultiDay && date === occurrenceEnd && item.leaving_time) {
     return [{
       key: `jules-${item.id}-${date}-leaving`,
       title: 'Jules Leaving',
