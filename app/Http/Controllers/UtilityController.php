@@ -12,7 +12,7 @@ class UtilityController extends Controller
     public function index(Request $request): JsonResponse
     {
         $utilities = Utility::query()
-            ->where('user_id', $request->user()->id)
+            ->with('user')
             ->orderBy('due_date')
             ->orderBy('id')
             ->get();
@@ -32,7 +32,7 @@ class UtilityController extends Controller
             'recurs_monthly' => (bool) ($validated['recurs_monthly'] ?? false),
         ]);
 
-        return response()->json($utility, 201);
+        return response()->json($utility->load('user'), 201);
     }
 
     public function update(Request $request, int $id): JsonResponse
@@ -51,7 +51,7 @@ class UtilityController extends Controller
 
         $utility->update($payload);
 
-        return response()->json($utility);
+        return response()->json($utility->load('user'));
     }
 
     private function storeValidationRules(): array

@@ -4,28 +4,31 @@
       <v-card-title>{{ isEditing ? 'Edit Jules Day' : 'New Jules Day' }}</v-card-title>
       <v-card-text class="jules-form-fields">
         <v-select
-          v-model="form.title"
-          label="Title"
+          v-model="form.type"
+          label="Type"
           density="comfortable"
-          :items="titleOptions"
+          :items="typeOptions"
           item-title="title"
           item-value="value"
           :menu-props="{ contentClass: 'event-select-menu' }"
         />
-        <DatePickerField v-model="form.start" label="Start date" density="comfortable" class="date-field" />
-        <DatePickerField v-model="form.end" label="End date" density="comfortable" class="date-field" />
-        <v-text-field
-          v-model="form.coming_time"
-          :label="comingTimeLabel"
-          type="time"
-          density="comfortable"
-        />
-        <v-text-field
-          v-model="form.leaving_time"
-          :label="leavingTimeLabel"
-          type="time"
-          density="comfortable"
-        />
+        <DatePickerField v-model="form.start" label="Date" density="comfortable" class="date-field" />
+        <template v-if="form.type === 'arriving' || form.type === 'leaving'">
+          <v-text-field
+            v-if="form.type === 'arriving'"
+            v-model="form.coming_time"
+            label="Arriving time"
+            type="time"
+            density="comfortable"
+          />
+          <v-text-field
+            v-if="form.type === 'leaving'"
+            v-model="form.leaving_time"
+            label="Leaving time"
+            type="time"
+            density="comfortable"
+          />
+        </template>
         <v-select
           v-model="form.recurrence_type"
           label="Repeat"
@@ -39,7 +42,6 @@
         <div v-if="form.recurrence_type === 'custom'" class="custom-recurrence-inline">
           <p class="custom-recurrence-summary">{{ customRecurrenceSummary }}</p>
           <v-btn
-            v-if="showCustomRecurrenceButton"
             color="primary"
             size="x-small"
             density="comfortable"
@@ -56,33 +58,9 @@
       <v-card-actions>
         <v-spacer />
         <v-btn color="primary" class="action-btn jules-modal-action-btn" size="small" density="comfortable" rounded="pill" @click="closeDialog">Cancel</v-btn>
-        <v-btn color="primary" class="action-btn jules-modal-action-btn" size="small" density="comfortable" rounded="pill" :loading="saving" @click="handleSaveClick">
+        <v-btn color="primary" class="action-btn jules-modal-action-btn" size="small" density="comfortable" rounded="pill" :loading="saving" @click="emit('save')">
           Save
         </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
-
-  <v-dialog v-model="showOverwriteConfirmDialog" max-width="520px">
-    <v-card class="jules-form-card app-modal-card">
-      <v-card-title>Overwrite Jules Days?</v-card-title>
-      <v-card-text>
-        <div class="overwrite-panel">
-          <p class="overwrite-copy">
-            Clicking "Yes" will overwrite previously scheduled Jules days. Are you sure you would like to do this?
-          </p>
-          <div v-if="overwriteConflictDates.length > 0" class="overwrite-dates">
-            <p class="overwrite-dates-title">Dates that will be overwritten:</p>
-            <ul class="overwrite-date-list">
-              <li v-for="date in overwriteConflictDates" :key="date">{{ formatDisplayDate(date) }}</li>
-            </ul>
-          </div>
-        </div>
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn color="primary" class="action-btn jules-modal-action-btn" size="small" density="comfortable" rounded="pill" @click="showOverwriteConfirmDialog = false">No</v-btn>
-        <v-btn color="error" class="action-btn jules-modal-action-btn" size="small" density="comfortable" rounded="pill" @click="confirmOverwrite">Yes</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -159,7 +137,6 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn color="primary" class="action-btn jules-modal-action-btn" size="small" density="comfortable" rounded="pill" @click="showCustomRecurrenceDialog = false">Cancel</v-btn>
         <v-btn color="primary" class="action-btn jules-modal-action-btn" size="small" density="comfortable" rounded="pill" @click="showCustomRecurrenceDialog = false">Done</v-btn>
       </v-card-actions>
     </v-card>
@@ -170,17 +147,17 @@
 import { computed, ref, toRef, watch } from 'vue';
 import { VBtn, VCard, VCardActions, VCardText, VDialog, VRadio, VRadioGroup, VSelect, VSpacer, VTextField, VTextarea } from 'vuetify/components';
 import DatePickerField from '@/components/DatePickerField.vue';
-import { formatDisplayDate, getOccurrenceDatesUpTo, occursOnDate, recurrenceSummary, weekDays } from '@/utils/recurrence';
+import { recurrenceSummary, weekDays } from '@/utils/recurrence';
 import {
-  JULES_TITLE_GENERAL,
-  JULES_TITLE_NO,
-  normalizeJulesTitle,
+  JULES_TYPE_ARRIVING,
+  JULES_TYPE_LEAVING,
+  JULES_TYPE_HERE,
+  JULES_TYPE_GONE,
 } from '@/utils/jules';
 
 type JulesDayForm = {
-  title: string;
+  type: 'arriving' | 'leaving' | 'here' | 'gone';
   start: string;
-  end: string;
   coming_time: string;
   leaving_time: string;
   description: string;
@@ -199,29 +176,10 @@ const props = withDefaults(defineProps<{
   isEditing?: boolean;
   saving?: boolean;
   error?: string;
-  showCustomRecurrenceButton?: boolean;
-  existingJulesDays?: Array<{
-    id: number;
-    title: string;
-    start: string;
-    end: string;
-    recurrence_type?: 'none' | 'daily' | 'weekly' | 'biweekly' | 'annually' | 'custom';
-    recurrence_interval?: number | null;
-    recurrence_unit?: 'day' | 'week' | 'month' | 'year' | null;
-    recurrence_days_of_week?: number[] | null;
-    recurrence_end_type?: 'never' | 'on' | 'after' | null;
-    recurrence_end_date?: string | null;
-    recurrence_occurrences?: number | null;
-    excluded_occurrences?: string[] | null;
-  }>;
-  currentJulesDayId?: number | null;
 }>(), {
   isEditing: false,
   saving: false,
   error: '',
-  showCustomRecurrenceButton: true,
-  existingJulesDays: () => [],
-  currentJulesDayId: null,
 });
 
 const emit = defineEmits<{
@@ -236,11 +194,12 @@ const dialogOpen = computed({
 
 const form = toRef(props, 'form');
 const showCustomRecurrenceDialog = ref(false);
-const showOverwriteConfirmDialog = ref(false);
 
-const titleOptions = [
-  { title: 'Jules Day', value: JULES_TITLE_GENERAL },
-  { title: 'No Jules Day', value: JULES_TITLE_NO },
+const typeOptions = [
+  { title: 'Jules Here', value: JULES_TYPE_HERE },
+  { title: 'Jules Arriving', value: JULES_TYPE_ARRIVING },
+  { title: 'Jules Leaving', value: JULES_TYPE_LEAVING },
+  { title: 'Jules Gone', value: JULES_TYPE_GONE },
 ];
 
 const recurrenceOptions = [
@@ -260,59 +219,26 @@ const customRecurrenceUnits = [
 ] as const;
 
 const weekdayOptions = weekDays.map((label, value) => ({ label: label.slice(0, 1), value }));
-const customRecurrenceSummary = computed(() => recurrenceSummary(form.value));
-const isNoJulesTitleSelected = computed(() => normalizeJulesTitle(form.value.title) === JULES_TITLE_NO);
-const comingTimeLabel = computed(() => (isNoJulesTitleSelected.value ? 'Leaving time (start day)' : 'Arriving time (start day)'));
-const leavingTimeLabel = computed(() => (isNoJulesTitleSelected.value ? 'Arriving time (end day)' : 'Leaving time (end day)'));
-const overwriteConflictDates = computed(() => {
-  const targetDate = props.existingJulesDays.reduce((latest, day) => (day.end > latest ? day.end : latest), form.value.end);
-  const candidateDates = getOccurrenceDatesUpTo(form.value, targetDate);
+const customRecurrenceSummary = computed(() => recurrenceSummary({ ...form.value, end: form.value.start }));
 
-  return Array.from(new Set(candidateDates.filter((date) => props.existingJulesDays.some((day) => {
-    if (day.id === props.currentJulesDayId) return false;
-    return occursOnDate(day, date);
-  })))).sort();
+watch(() => form.value.type, (type) => {
+  if (type === JULES_TYPE_HERE || type === JULES_TYPE_GONE) {
+    form.value.coming_time = '';
+    form.value.leaving_time = '';
+  } else if (type === JULES_TYPE_ARRIVING) {
+    form.value.leaving_time = '';
+  } else if (type === JULES_TYPE_LEAVING) {
+    form.value.coming_time = '';
+  }
 });
-const shouldConfirmOverwrite = computed(() => overwriteConflictDates.value.length > 0);
 
 watch(() => props.modelValue, (open) => {
-  if (!open) {
-    showCustomRecurrenceDialog.value = false;
-  }
-});
-
-watch(() => form.value.title, (nextTitle, previousTitle) => {
-  const normalizedTitle = normalizeJulesTitle(nextTitle);
-  if (normalizedTitle !== nextTitle) {
-    form.value.title = normalizedTitle;
-    return;
-  }
-
-  const wasNoJulesTitle = normalizeJulesTitle(previousTitle ?? '') === JULES_TITLE_NO;
-  const isNoJulesTitle = normalizedTitle === JULES_TITLE_NO;
-  if (wasNoJulesTitle !== isNoJulesTitle) {
-    [form.value.coming_time, form.value.leaving_time] = [form.value.leaving_time, form.value.coming_time];
-  }
+  if (!open) showCustomRecurrenceDialog.value = false;
 });
 
 function closeDialog() {
   showCustomRecurrenceDialog.value = false;
-  showOverwriteConfirmDialog.value = false;
   emit('update:modelValue', false);
-}
-
-function handleSaveClick() {
-  if (shouldConfirmOverwrite.value) {
-    showOverwriteConfirmDialog.value = true;
-    return;
-  }
-
-  emit('save');
-}
-
-function confirmOverwrite() {
-  showOverwriteConfirmDialog.value = false;
-  emit('save');
 }
 
 function handleRecurrenceTypeChange(value: JulesDayForm['recurrence_type']) {
@@ -323,20 +249,16 @@ function handleRecurrenceTypeChange(value: JulesDayForm['recurrence_type']) {
     showCustomRecurrenceDialog.value = true;
     return;
   }
-
   showCustomRecurrenceDialog.value = false;
 }
 
 function toggleCustomWeekday(day: number) {
   const selected = form.value.recurrence_days_of_week;
   if (selected.includes(day)) {
-    const next = selected.filter((value) => value !== day);
-    if (next.length > 0) {
-      form.value.recurrence_days_of_week = next;
-    }
+    const next = selected.filter((v) => v !== day);
+    if (next.length > 0) form.value.recurrence_days_of_week = next;
     return;
   }
-
   form.value.recurrence_days_of_week = [...selected, day].sort((a, b) => a - b);
 }
 
@@ -345,7 +267,6 @@ function handleCustomUnitChange() {
     form.value.recurrence_days_of_week = [];
     return;
   }
-
   if (form.value.recurrence_days_of_week.length === 0) {
     form.value.recurrence_days_of_week = [new Date(`${form.value.start}T00:00:00`).getDay()];
   }
@@ -354,6 +275,11 @@ function handleCustomUnitChange() {
 
 <style scoped>
 .jules-form-card {
+  border-radius: 20px;
+  background-color: var(--app-modal-bg) !important;
+}
+
+.custom-recurrence-card {
   border-radius: 20px;
   background-color: var(--app-modal-bg) !important;
 }
@@ -386,7 +312,8 @@ function handleCustomUnitChange() {
 }
 
 .custom-recurrence-inline {
-  margin-bottom: 12px;
+  display: grid;
+  gap: 6px;
 }
 
 .custom-recurrence-summary {
@@ -406,6 +333,14 @@ function handleCustomUnitChange() {
   font-size: 14px;
   font-weight: 600;
   color: #334155;
+}
+
+.custom-interval-field {
+  max-width: 80px;
+}
+
+.custom-unit-field {
+  max-width: 130px;
 }
 
 .repeat-on-section {
@@ -446,52 +381,13 @@ function handleCustomUnitChange() {
   margin-top: 10px;
 }
 
+.custom-end-field {
+  max-width: 240px;
+}
+
 .form-error {
   margin: 0;
   color: #b91c1c;
   font-size: 14px;
-}
-
-.overwrite-copy {
-  margin: 0;
-  color: #475569;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.overwrite-panel {
-  display: grid;
-  gap: 12px;
-  background: #ffffff;
-  border-radius: 14px;
-  padding: 14px;
-  box-shadow: inset 0 0 0 1px #dbe4f0;
-  margin-bottom: 14px;
-}
-
-.overwrite-dates {
-  display: grid;
-  gap: 8px;
-}
-
-.overwrite-dates-title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.overwrite-date-list {
-  margin: 0;
-  padding-left: 18px;
-  display: grid;
-  gap: 4px;
-  color: #334155;
-  font-size: 14px;
-}
-
-.custom-recurrence-card {
-  border-radius: 20px;
-  background-color: var(--app-modal-bg) !important;
 }
 </style>

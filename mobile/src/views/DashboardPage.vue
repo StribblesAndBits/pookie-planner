@@ -78,7 +78,7 @@
                 <ul class="utility-list">
                   <li v-for="day in currentWeekJulesDays" :key="`${day.id}-${day.occurrence_start}`" class="utility-item">
                     <div class="utility-main">
-                      <span class="utility-name">{{ describeJulesDay(day.title, day.coming_time, day.leaving_time) }}</span>
+                      <span class="utility-name">{{ describeJulesDay(day.type, day.coming_time, day.leaving_time) }}</span>
                       <span class="utility-meta">{{ formatJulesOccurrenceDate(day) }}</span>
                     </div>
                   </li>
@@ -136,8 +136,6 @@
       :is-editing="false"
       :saving="savingJulesDay"
       :error="julesFormError"
-      :show-custom-recurrence-button="true"
-      :existing-jules-days="julesDays"
       @save="saveJulesDay"
     />
 
@@ -158,9 +156,7 @@ import CurrencyAmountField from '@/components/CurrencyAmountField.vue';
 import UtilityCurrencyToggle from '@/components/UtilityCurrencyToggle.vue';
 import api from '@/services/api';
 import {
-  JULES_TITLE_GENERAL,
   describeJulesDay,
-  normalizeJulesTitle,
 } from '@/utils/jules';
 import { formatUtilityAmount, normalizeUtilityCurrency } from '@/utils/utility';
 import {
@@ -184,13 +180,12 @@ type UtilityItem = {
 
 type JulesDayItem = {
   id: number;
-  title: string;
+  type: 'arriving' | 'leaving' | 'here' | 'gone';
   start: string;
   end: string;
   coming_time?: string | null;
   leaving_time?: string | null;
   description?: string | null;
-  all_day?: boolean;
   recurrence_type?: 'none' | 'daily' | 'weekly' | 'biweekly' | 'annually' | 'custom';
   recurrence_interval?: number | null;
   recurrence_unit?: 'day' | 'week' | 'month' | 'year' | null;
@@ -202,9 +197,8 @@ type JulesDayItem = {
 };
 
 type JulesDayForm = {
-  title: string;
+  type: 'arriving' | 'leaving' | 'here' | 'gone';
   start: string;
-  end: string;
   coming_time: string;
   leaving_time: string;
   description: string;
@@ -246,9 +240,8 @@ const showAddJulesDialog = ref(false);
 const savingJulesDay = ref(false);
 const julesFormError = ref('');
 const julesForm = ref<JulesDayForm>({
-  title: JULES_TITLE_GENERAL,
+  type: 'here',
   start: formatDateString(new Date()),
-  end: formatDateString(new Date()),
   coming_time: '',
   leaving_time: '',
   description: '',
@@ -274,7 +267,7 @@ const currentWeekJulesDays = computed(() => {
         occurrence_start: getOccurrenceStartDate(day, date) || day.start,
         occurrence_date: date,
       }));
-  }).sort((a, b) => a.occurrence_date.localeCompare(b.occurrence_date) || a.title.localeCompare(b.title));
+  }).sort((a, b) => a.occurrence_date.localeCompare(b.occurrence_date) || a.type.localeCompare(b.type));
 });
 
 const currentMonthUnpaidUtilities = computed(() => {
@@ -329,9 +322,8 @@ function openAddJulesDayDialog(date?: string) {
   showAddJulesDialog.value = true;
   const initialDate = typeof date === 'string' && date ? date : formatDateString(new Date());
   julesForm.value = {
-    title: JULES_TITLE_GENERAL,
+    type: 'here',
     start: initialDate,
-    end: initialDate,
     coming_time: '',
     leaving_time: '',
     description: '',
@@ -448,7 +440,6 @@ async function saveJulesDay() {
   try {
     const payload = {
       ...julesForm.value,
-      title: normalizeJulesTitle(julesForm.value.title),
       coming_time: julesForm.value.coming_time || null,
       leaving_time: julesForm.value.leaving_time || null,
       recurrence_end_date: julesForm.value.recurrence_end_type === 'on' ? julesForm.value.recurrence_end_date : null,
@@ -463,7 +454,7 @@ async function saveJulesDay() {
 
     await api.post('/jules-days', payload);
     showAddJulesDialog.value = false;
-      await loadJulesDays();
+    await loadJulesDays();
   } catch (error: any) {
     const fieldErrors = error?.response?.data?.errors;
     const firstField = fieldErrors ? Object.keys(fieldErrors)[0] : null;

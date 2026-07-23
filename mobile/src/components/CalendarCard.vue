@@ -120,10 +120,10 @@
         </div>
       </div>
       <div class="calendar-legend">
-        <span class="legend-item"><span class="legend-dot jules-marker--jules">J</span> Jules day</span>
-        <span class="legend-item"><span class="legend-dot jules-marker--coming">J</span> Jules arriving</span>
-        <span class="legend-item"><span class="legend-dot jules-marker--leaving">J</span> Jules leaving</span>
-        <span class="legend-item"><span class="legend-dot jules-marker--no-jules">J</span> No Jules day</span>
+        <span class="legend-item"><span class="legend-dot jules-marker--here">J</span> Jules Here</span>
+        <span class="legend-item"><span class="legend-dot jules-marker--arriving">J</span> Jules Arriving</span>
+        <span class="legend-item"><span class="legend-dot jules-marker--leaving">J</span> Jules Leaving</span>
+        <span class="legend-item"><span class="legend-dot jules-marker--gone">J</span> Jules Gone</span>
       </div>
 
       <!-- Day View Dialog -->
@@ -367,7 +367,7 @@ import {
 import { useAuth } from '@/composables/useAuth';
 import api from '@/services/api';
 import DatePickerField from '@/components/DatePickerField.vue';
-import { buildJulesMarker, isNoJulesTitle, normalizeJulesTitle } from '@/utils/jules';
+import { buildJulesMarker, JULES_TYPE_ARRIVING, JULES_TYPE_LEAVING, JULES_TYPE_HERE, JULES_TYPE_GONE } from '@/utils/jules';
 import { formatUtilityAmount, normalizeUtilityCurrency } from '@/utils/utility';
 import { getOccurrenceStartDate, occursOnDate } from '@/utils/recurrence';
 
@@ -422,7 +422,7 @@ type CalendarCell = {
 
 type JulesDayRecord = {
   id: number;
-  title: string;
+  type: 'arriving' | 'leaving' | 'here' | 'gone';
   start: string;
   end: string;
   coming_time?: string | null;
@@ -885,39 +885,37 @@ function getJulesMarkers(date: string) {
   const markers = props.julesDays
     .filter((item) => occursOnDate(item, date))
     .flatMap((item) => {
-      const normalizedTitle = normalizeJulesTitle(item.title);
       const occurrenceStart = getOccurrenceStartDate(item, date) || item.start;
       const duration = Math.max(1, diffDays(item.start, item.end) + 1);
       const occurrenceEnd = addDays(occurrenceStart, duration - 1);
 
-      if (isNoJulesTitle(normalizedTitle)) {
+      if (item.type === JULES_TYPE_GONE) {
         if (date === occurrenceStart && item.leaving_time) {
-          return [buildJulesMarker('leaving', item.leaving_time)];
+          return [buildJulesMarker(JULES_TYPE_LEAVING, item.leaving_time)];
         }
         if (date === occurrenceEnd && item.coming_time) {
-          return [buildJulesMarker('coming', item.coming_time)];
+          return [buildJulesMarker(JULES_TYPE_ARRIVING, item.coming_time)];
         }
-        return [buildJulesMarker('no-jules')];
+        return [buildJulesMarker(JULES_TYPE_GONE)];
       }
 
       const nextMarkers = [];
 
       if (date === occurrenceStart && item.coming_time) {
-        nextMarkers.push(buildJulesMarker('coming', item.coming_time));
+        nextMarkers.push(buildJulesMarker(JULES_TYPE_ARRIVING, item.coming_time));
       }
 
       if (occurrenceEnd !== occurrenceStart && date === occurrenceEnd && item.leaving_time) {
-        nextMarkers.push(buildJulesMarker('leaving', item.leaving_time));
+        nextMarkers.push(buildJulesMarker(JULES_TYPE_LEAVING, item.leaving_time));
       }
 
-      return nextMarkers.length > 0 ? nextMarkers : [buildJulesMarker('jules')];
+      return nextMarkers.length > 0 ? nextMarkers : [buildJulesMarker(JULES_TYPE_HERE)];
     });
 
   return markers.sort((a, b) => a.order - b.order).slice(0, 2);
 }
 
 function buildJulesDayEntries(item: JulesDayRecord, date: string): DayViewJulesEntry[] {
-  const normalizedTitle = normalizeJulesTitle(item.title);
   const occurrenceStart = getOccurrenceStartDate(item, date) || item.start;
   const duration = Math.max(1, diffDays(item.start, item.end) + 1);
   const occurrenceEnd = addDays(occurrenceStart, duration - 1);
@@ -943,7 +941,7 @@ function buildJulesDayEntries(item: JulesDayRecord, date: string): DayViewJulesE
     }];
   }
 
-  if (isNoJulesTitle(normalizedTitle)) return [];
+  if (item.type === JULES_TYPE_GONE) return [];
 
   return [{
     key: `jules-${item.id}-${date}-jules`,
@@ -1213,8 +1211,8 @@ function openEditEventDialog() {
     title: selectedEvent.value.title,
     start: selectedEvent.value.start,
     end: selectedEvent.value.end,
-    start_time: selectedEvent.value.start_time,
-    end_time: selectedEvent.value.end_time,
+    start_time: (selectedEvent.value.start_time || '').slice(0, 5),
+    end_time: (selectedEvent.value.end_time || '').slice(0, 5),
     description: selectedEvent.value.description || '',
     all_day: !!selectedEvent.value.all_day,
     recurrence_type: selectedEvent.value.recurrence_type || 'none',
@@ -1624,15 +1622,15 @@ onMounted(async () => {
   line-height: 1;
 }
 
-.jules-marker--no-jules {
+.jules-marker--gone {
   background: #dc2626;
 }
 
-.jules-marker--jules {
+.jules-marker--here {
   background: #16a34a;
 }
 
-.jules-marker--coming {
+.jules-marker--arriving {
   background: #60a5fa;
 }
 

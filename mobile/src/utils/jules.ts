@@ -1,17 +1,15 @@
-export const JULES_TITLE_COMING = 'Jules Coming Day';
-export const JULES_TITLE_LEAVING = 'Jules Leaving Day';
-export const JULES_TITLE_NO = 'No Jules Day';
-export const JULES_TITLE_GENERAL = 'Jules Day';
-export const JULES_TITLE_PICKUP_LEGACY = 'Jules Pickup Day';
-export const JULES_TITLE_DROPOFF_LEGACY = 'Jules Dropoff Day';
+export const JULES_TYPE_ARRIVING = 'arriving';
+export const JULES_TYPE_LEAVING = 'leaving';
+export const JULES_TYPE_HERE = 'here';
+export const JULES_TYPE_GONE = 'gone';
 
 export type JulesMarker = {
   label: string;
-  className: 'jules-marker--coming' | 'jules-marker--leaving' | 'jules-marker--no-jules' | 'jules-marker--jules';
+  className: 'jules-marker--arriving' | 'jules-marker--leaving' | 'jules-marker--here' | 'jules-marker--gone';
   order: number;
 };
 
-export type JulesMarkerKind = 'coming' | 'leaving' | 'no-jules' | 'jules';
+export type JulesMarkerKind = 'arriving' | 'leaving' | 'here' | 'gone';
 
 function toHourMinute(time?: string | null): { hour: number; minute: number } | null {
   if (!time) return null;
@@ -31,45 +29,41 @@ export function formatLongTime(time?: string | null): string {
   return `${normalizedHour}:${String(parsed.minute).padStart(2, '0')} ${suffix}`;
 }
 
-export function normalizeJulesTitle(title: string): string {
-  if (title === JULES_TITLE_PICKUP_LEGACY) return JULES_TITLE_GENERAL;
-  if (title === JULES_TITLE_DROPOFF_LEGACY) return JULES_TITLE_GENERAL;
-  if (title === JULES_TITLE_COMING || title === JULES_TITLE_LEAVING) return JULES_TITLE_GENERAL;
-  return title;
-}
-
-export function isNoJulesTitle(title: string): boolean {
-  return normalizeJulesTitle(title) === JULES_TITLE_NO;
-}
-
-export function describeJulesDay(title: string, comingTime?: string | null, leavingTime?: string | null): string {
-  const normalized = normalizeJulesTitle(title);
-  if (normalized === JULES_TITLE_NO) {
-    return 'No Jules Day';
+export function describeJulesDay(type: string, comingTime?: string | null, leavingTime?: string | null): string {
+  if (type === JULES_TYPE_GONE) {
+    return 'No Jules';
+  }
+  if (type === JULES_TYPE_ARRIVING) {
+    const time = formatLongTime(comingTime);
+    return time ? `Jules Arriving at ${time}` : 'Jules Arriving';
+  }
+  if (type === JULES_TYPE_LEAVING) {
+    const time = formatLongTime(leavingTime);
+    return time ? `Jules Leaving at ${time}` : 'Jules Leaving';
   }
   const coming = formatLongTime(comingTime);
   const leaving = formatLongTime(leavingTime);
   if (coming && leaving) {
-    return `Jules Arriving at ${coming} • Leaving at ${leaving}`;
+    return `Jules Here (${coming} - ${leaving})`;
   }
   if (coming) {
-    return `Jules Arriving at ${coming}`;
+    return `Jules Here (from ${coming})`;
   }
   if (leaving) {
-    return `Jules Leaving at ${leaving}`;
+    return `Jules Here (until ${leaving})`;
   }
-  return normalized;
+  return 'Jules Here';
 }
 
-export function buildJulesMarker(kind: JulesMarkerKind, _time?: string | null): JulesMarker {
-  if (kind === 'no-jules') {
-    return { label: 'J', className: 'jules-marker--no-jules', order: 0 };
+export function buildJulesMarker(type: string, _time?: string | null): JulesMarker {
+  if (type === JULES_TYPE_GONE) {
+    return { label: 'J', className: 'jules-marker--gone', order: 0 };
   }
-  if (kind === 'coming') {
-    return { label: 'J', className: 'jules-marker--coming', order: 1 };
+  if (type === JULES_TYPE_ARRIVING) {
+    return { label: 'J', className: 'jules-marker--arriving', order: 1 };
   }
-  if (kind === 'leaving') {
+  if (type === JULES_TYPE_LEAVING) {
     return { label: 'J', className: 'jules-marker--leaving', order: 2 };
   }
-  return { label: 'J', className: 'jules-marker--jules', order: 3 };
+  return { label: 'J', className: 'jules-marker--here', order: 3 };
 }

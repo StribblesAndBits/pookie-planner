@@ -94,10 +94,10 @@
         </div>
       </div>
       <div class="calendar-legend">
-        <span class="legend-item"><span class="legend-dot jules-marker--jules">J</span> Jules day</span>
-        <span class="legend-item"><span class="legend-dot jules-marker--coming">J</span> Jules arriving</span>
-        <span class="legend-item"><span class="legend-dot jules-marker--leaving">J</span> Jules leaving</span>
-        <span class="legend-item"><span class="legend-dot jules-marker--no-jules">J</span> No Jules day</span>
+        <span class="legend-item"><span class="legend-dot jules-marker--here">J</span> Jules Here</span>
+        <span class="legend-item"><span class="legend-dot jules-marker--arriving">J</span> Jules Arriving</span>
+        <span class="legend-item"><span class="legend-dot jules-marker--leaving">J</span> Jules Leaving</span>
+        <span class="legend-item"><span class="legend-dot jules-marker--gone">J</span> Jules Gone</span>
       </div>
 
       <v-dialog v-model="showDayModal" max-width="620px">
@@ -139,9 +139,6 @@
         :is-editing="isEditingJulesDay"
         :saving="savingJulesDay"
         :error="formError"
-        :show-custom-recurrence-button="false"
-        :existing-jules-days="julesDays"
-        :current-jules-day-id="selectedOccurrence?.id ?? null"
         @save="saveJulesDay"
       />
 
@@ -169,15 +166,11 @@ import { VCard, VCardTitle, VCardText, VCardActions, VDialog, VBtn, VSpacer, VSe
 import JulesDayDialog from '@/components/JulesDayDialog.vue';
 import api from '@/services/api';
 import {
-  JULES_TITLE_GENERAL,
+  JULES_TYPE_HERE,
   buildJulesMarker,
   describeJulesDay,
-  isNoJulesTitle,
-  normalizeJulesTitle,
 } from '@/utils/jules';
 import {
-  addDays,
-  diffDays,
   formatDateString,
   formatDisplayDate,
   getOccurrenceStartDate,
@@ -187,7 +180,7 @@ import {
 
 type JulesDayItem = {
   id: number;
-  title: string;
+  type: 'arriving' | 'leaving' | 'here' | 'gone';
   start: string;
   end: string;
   coming_time?: string | null;
@@ -209,9 +202,8 @@ type JulesDayOccurrence = JulesDayItem & {
 };
 
 type JulesDayForm = {
-  title: string;
+  type: 'arriving' | 'leaving' | 'here' | 'gone';
   start: string;
-  end: string;
   coming_time: string;
   leaving_time: string;
   description: string;
@@ -314,15 +306,14 @@ const selectedDayOccurrences = computed<JulesDayOccurrence[]>(() => {
       occurrence_date: selectedDayDate.value!,
       occurrence_start: getOccurrenceStartDate(day, selectedDayDate.value!) || day.start,
     }))
-    .sort((a, b) => a.occurrence_start.localeCompare(b.occurrence_start) || a.title.localeCompare(b.title));
+    .sort((a, b) => a.occurrence_start.localeCompare(b.occurrence_start));
 });
 
 function getDefaultJulesForm(date?: string): JulesDayForm {
   const initialDate = date || formatDateString(new Date());
   return {
-    title: JULES_TITLE_GENERAL,
+    type: JULES_TYPE_HERE,
     start: initialDate,
-    end: initialDate,
     coming_time: '',
     leaving_time: '',
     description: '',
@@ -337,42 +328,11 @@ function getDefaultJulesForm(date?: string): JulesDayForm {
 }
 
 function formatOccurrenceRange(day: JulesDayOccurrence): string {
-  const duration = Math.max(1, diffDays(day.start, day.end) + 1);
-  const start = day.occurrence_start;
-  const end = addDays(start, duration - 1);
-  return start === end ? formatDisplayDate(start) : `${formatDisplayDate(start)} - ${formatDisplayDate(end)}`;
+  return formatDisplayDate(day.start);
 }
 
 function formatOccurrenceTitle(day: JulesDayOccurrence): string {
-  const normalizedTitle = normalizeJulesTitle(day.title);
-  const duration = Math.max(1, diffDays(day.start, day.end) + 1);
-  const occurrenceEnd = addDays(day.occurrence_start, duration - 1);
-  const isStartDay = day.occurrence_date === day.occurrence_start;
-  const isEndDay = day.occurrence_date === occurrenceEnd;
-
-  if (isNoJulesTitle(normalizedTitle)) {
-    if (isStartDay && day.leaving_time) {
-      return describeJulesDay(JULES_TITLE_GENERAL, null, day.leaving_time);
-    }
-    if (isEndDay && day.coming_time) {
-      return describeJulesDay(JULES_TITLE_GENERAL, day.coming_time, null);
-    }
-    return describeJulesDay(normalizedTitle);
-  }
-
-  if (isStartDay && isEndDay) {
-    return describeJulesDay(normalizedTitle, day.coming_time, day.leaving_time);
-  }
-
-  if (isStartDay && day.coming_time) {
-    return describeJulesDay(normalizedTitle, day.coming_time, null);
-  }
-
-  if (isEndDay && day.leaving_time) {
-    return describeJulesDay(normalizedTitle, null, day.leaving_time);
-  }
-
-  return normalizedTitle;
+  return describeJulesDay(day.type, day.coming_time, day.leaving_time);
 }
 
 function friendlyJulesLoadError(error: any) {
@@ -385,64 +345,15 @@ function friendlyJulesLoadError(error: any) {
 }
 
 function getOccurrenceBadge(day: JulesDayOccurrence) {
-  if (isNoJulesTitle(day.title)) {
-    const duration = Math.max(1, diffDays(day.start, day.end) + 1);
-    const occurrenceEnd = addDays(day.occurrence_start, duration - 1);
-    if (day.occurrence_date === day.occurrence_start && day.leaving_time) {
-      return buildJulesMarker('leaving', day.leaving_time);
-    }
-    if (day.occurrence_date === occurrenceEnd && day.coming_time) {
-      return buildJulesMarker('coming', day.coming_time);
-    }
-    return buildJulesMarker('no-jules');
-  }
-
-  if (day.occurrence_date === day.occurrence_start && day.coming_time) {
-    return buildJulesMarker('coming', day.coming_time);
-  }
-
-  const duration = Math.max(1, diffDays(day.start, day.end) + 1);
-  const occurrenceEnd = addDays(day.occurrence_start, duration - 1);
-  if (day.occurrence_date === occurrenceEnd && day.leaving_time) {
-    return buildJulesMarker('leaving', day.leaving_time);
-  }
-
-  return buildJulesMarker('jules');
+  return buildJulesMarker(day.type);
 }
 
 function getJulesMarkers(date: string) {
-  const markers = julesDays.value
+  return julesDays.value
     .filter((item) => occursOnDate(item, date))
-    .flatMap((item) => {
-      const normalizedTitle = normalizeJulesTitle(item.title);
-      const occurrenceStart = getOccurrenceStartDate(item, date) || item.start;
-      const duration = Math.max(1, diffDays(item.start, item.end) + 1);
-      const occurrenceEnd = addDays(occurrenceStart, duration - 1);
-
-      if (isNoJulesTitle(normalizedTitle)) {
-        if (date === occurrenceStart && item.leaving_time) {
-          return [buildJulesMarker('leaving', item.leaving_time)];
-        }
-        if (date === occurrenceEnd && item.coming_time) {
-          return [buildJulesMarker('coming', item.coming_time)];
-        }
-        return [buildJulesMarker('no-jules')];
-      }
-
-      const nextMarkers = [];
-
-      if (date === occurrenceStart && item.coming_time) {
-        nextMarkers.push(buildJulesMarker('coming', item.coming_time));
-      }
-
-      if (occurrenceEnd !== occurrenceStart && date === occurrenceEnd && item.leaving_time) {
-        nextMarkers.push(buildJulesMarker('leaving', item.leaving_time));
-      }
-
-      return nextMarkers.length > 0 ? nextMarkers : [buildJulesMarker('jules')];
-    });
-
-  return markers.sort((a, b) => a.order - b.order).slice(0, 2);
+    .map((item) => buildJulesMarker(item.type))
+    .sort((a, b) => a.order - b.order)
+    .slice(0, 2);
 }
 
 function openMonthYearDialog() {
@@ -494,9 +405,8 @@ function openEditJulesDayDialog(day: JulesDayOccurrence) {
   selectedOccurrence.value = day;
   formError.value = '';
   julesForm.value = {
-    title: normalizeJulesTitle(day.title),
+    type: day.type,
     start: day.start,
-    end: day.end,
     coming_time: day.coming_time || '',
     leaving_time: day.leaving_time || '',
     description: day.description || '',
@@ -530,7 +440,6 @@ async function saveJulesDay() {
   try {
     const payload = {
       ...julesForm.value,
-      title: normalizeJulesTitle(julesForm.value.title),
       coming_time: julesForm.value.coming_time || null,
       leaving_time: julesForm.value.leaving_time || null,
       recurrence_end_date: julesForm.value.recurrence_end_type === 'on' ? julesForm.value.recurrence_end_date : null,
@@ -565,26 +474,18 @@ function requestDeleteJulesDay(day: JulesDayOccurrence) {
     showDeleteScopeDialog.value = true;
     return;
   }
-
   showDeleteScopeDialog.value = false;
   void confirmDeleteJulesDay('series');
 }
 
 async function confirmDeleteJulesDay(scope: 'single' | 'future' | 'series') {
   if (!selectedOccurrence.value) return;
-
   if (scope === 'series') {
     if (!window.confirm('Delete this Jules Day?')) return;
   }
-
   try {
     await api.delete(`/jules-days/${selectedOccurrence.value.id}`, {
-      data: scope === 'series'
-        ? {}
-        : {
-            scope,
-            occurrence_start: selectedOccurrence.value.occurrence_start,
-          },
+      data: scope === 'series' ? {} : { scope, occurrence_start: selectedOccurrence.value.occurrence_start },
     });
     showDeleteScopeDialog.value = false;
     showDayModal.value = false;
@@ -790,15 +691,15 @@ defineExpose({ refresh: loadJulesDays });
   line-height: 1;
 }
 
-.jules-marker--no-jules {
+.jules-marker--gone {
   background: #dc2626;
 }
 
-.jules-marker--jules {
+.jules-marker--here {
   background: #16a34a;
 }
 
-.jules-marker--coming {
+.jules-marker--arriving {
   background: #60a5fa;
 }
 
@@ -905,11 +806,11 @@ defineExpose({ refresh: loadJulesDays });
   line-height: 1;
 }
 
-.jules-occurrence-badge.jules-marker--no-jules {
+.jules-occurrence-badge.jules-marker--gone {
   background: #dc2626;
 }
 
-.jules-occurrence-badge.jules-marker--coming {
+.jules-occurrence-badge.jules-marker--arriving {
   background: #60a5fa;
 }
 

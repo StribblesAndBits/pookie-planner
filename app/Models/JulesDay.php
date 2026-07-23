@@ -6,12 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 
 class JulesDay extends Model
 {
+    public const TYPES = ['arriving', 'leaving', 'here', 'gone'];
     public const RECURRENCE_TYPES = ['none', 'daily', 'weekly', 'biweekly', 'annually', 'custom'];
     public const CUSTOM_RECURRENCE_UNITS = ['day', 'week', 'month', 'year'];
     public const RECURRENCE_END_TYPES = ['never', 'on', 'after'];
 
     protected $fillable = [
         'title',
+        'type',
         'start',
         'end',
         'transition_time',
@@ -32,6 +34,7 @@ class JulesDay extends Model
     protected function casts(): array
     {
         return [
+            'type' => 'string',
             'start' => 'date:Y-m-d',
             'end' => 'date:Y-m-d',
             'all_day' => 'boolean',
