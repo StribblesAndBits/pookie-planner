@@ -882,70 +882,39 @@ function getEventsForDate(date: string) {
 }
 
 function getJulesMarkers(date: string) {
-  const markers = props.julesDays
+  return props.julesDays
     .filter((item) => occursOnDate(item, date))
-    .flatMap((item) => {
-      const occurrenceStart = getOccurrenceStartDate(item, date) || item.start;
-      const duration = Math.max(1, diffDays(item.start, item.end) + 1);
-      const occurrenceEnd = addDays(occurrenceStart, duration - 1);
-
-      if (item.type === JULES_TYPE_GONE) {
-        if (date === occurrenceStart && item.leaving_time) {
-          return [buildJulesMarker(JULES_TYPE_LEAVING, item.leaving_time)];
-        }
-        if (date === occurrenceEnd && item.coming_time) {
-          return [buildJulesMarker(JULES_TYPE_ARRIVING, item.coming_time)];
-        }
-        return [buildJulesMarker(JULES_TYPE_GONE)];
-      }
-
-      const nextMarkers = [];
-
-      if (date === occurrenceStart && item.coming_time) {
-        nextMarkers.push(buildJulesMarker(JULES_TYPE_ARRIVING, item.coming_time));
-      }
-
-      if (occurrenceEnd !== occurrenceStart && date === occurrenceEnd && item.leaving_time) {
-        nextMarkers.push(buildJulesMarker(JULES_TYPE_LEAVING, item.leaving_time));
-      }
-
-      return nextMarkers.length > 0 ? nextMarkers : [buildJulesMarker(JULES_TYPE_HERE)];
-    });
-
-  return markers.sort((a, b) => a.order - b.order).slice(0, 2);
+    .map((item) => buildJulesMarker(item.type))
+    .sort((a, b) => a.order - b.order)
+    .slice(0, 2);
 }
 
 function buildJulesDayEntries(item: JulesDayRecord, date: string): DayViewJulesEntry[] {
-  const occurrenceStart = getOccurrenceStartDate(item, date) || item.start;
-  const duration = Math.max(1, diffDays(item.start, item.end) + 1);
-  const occurrenceEnd = addDays(occurrenceStart, duration - 1);
-  const isMultiDay = occurrenceStart !== occurrenceEnd;
+  if (item.type === JULES_TYPE_GONE) return [];
 
-  if (isMultiDay && date === occurrenceStart && item.coming_time) {
+  if (item.type === JULES_TYPE_ARRIVING) {
     return [{
       key: `jules-${item.id}-${date}-arriving`,
       title: 'Jules Arriving',
-      note: formatTimeLabel(item.coming_time),
+      note: item.coming_time ? formatTimeLabel(item.coming_time) : 'All day',
       variant: 'arriving',
-      color: '#3b82f6',
+      color: '#60a5fa',
     }];
   }
 
-  if (isMultiDay && date === occurrenceEnd && item.leaving_time) {
+  if (item.type === JULES_TYPE_LEAVING) {
     return [{
       key: `jules-${item.id}-${date}-leaving`,
       title: 'Jules Leaving',
-      note: formatTimeLabel(item.leaving_time),
+      note: item.leaving_time ? formatTimeLabel(item.leaving_time) : 'All day',
       variant: 'leaving',
       color: '#f87171',
     }];
   }
 
-  if (item.type === JULES_TYPE_GONE) return [];
-
   return [{
-    key: `jules-${item.id}-${date}-jules`,
-    title: 'Jules Day',
+    key: `jules-${item.id}-${date}-here`,
+    title: 'Jules Here',
     note: 'All day',
     variant: 'normal',
     color: '#16a34a',

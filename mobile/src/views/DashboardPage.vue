@@ -1,6 +1,6 @@
 <template>
   <ion-page>
-    <Navbar />
+    <AppNavbar />
 
     <ion-content :fullscreen="true">
       <div class="dashboard-content">
@@ -148,7 +148,7 @@ import { onIonViewWillEnter } from '@ionic/vue';
 import { IonPage, IonContent } from '@ionic/vue';
 import { useRouter } from 'vue-router';
 import { VCard, VCardTitle, VCardText, VBtn, VDialog, VTextField, VSelect, VCardActions, VSpacer } from 'vuetify/components';
-import Navbar from '@/components/Navbar.vue';
+import AppNavbar from '@/components/AppNavbar.vue';
 import CalendarCard from '@/components/CalendarCard.vue';
 import DatePickerField from '@/components/DatePickerField.vue';
 import JulesDayDialog from '@/components/JulesDayDialog.vue';

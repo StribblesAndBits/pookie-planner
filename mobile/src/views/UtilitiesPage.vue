@@ -1,6 +1,6 @@
 <template>
   <ion-page>
-    <Navbar />
+    <AppNavbar />
 
     <div class="utilities-content">
       <div class="utilities-container">
@@ -95,7 +95,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { IonPage, onIonViewWillEnter } from '@ionic/vue';
 import { VCard, VCardTitle, VCardText, VBtn, VDialog, VTextField, VSelect, VCardActions, VSpacer } from 'vuetify/components';
-import Navbar from '@/components/Navbar.vue';
+import AppNavbar from '@/components/AppNavbar.vue';
 import DatePickerField from '@/components/DatePickerField.vue';
 import CurrencyAmountField from '@/components/CurrencyAmountField.vue';
 import UtilityCurrencyToggle from '@/components/UtilityCurrencyToggle.vue';

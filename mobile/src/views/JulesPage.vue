@@ -1,6 +1,6 @@
 <template>
   <ion-page>
-    <Navbar />
+    <AppNavbar />
 
     <div class="dashboard-content">
       <div class="dashboard-container">
@@ -15,7 +15,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { IonPage, onIonViewWillEnter } from '@ionic/vue';
-import Navbar from '@/components/Navbar.vue';
+import AppNavbar from '@/components/AppNavbar.vue';
 import JulesCalendarCard from '@/components/JulesCalendarCard.vue';
 
 const julesCalendarCardRef = ref<InstanceType<typeof JulesCalendarCard> | null>(null);

@@ -1,6 +1,6 @@
 <template>
   <ion-page>
-    <Navbar />
+    <AppNavbar />
 
     <ion-content :fullscreen="true" class="ion-padding">
       <ion-header collapse="condense">
@@ -100,7 +100,7 @@
 import { computed, ref, onMounted } from 'vue';
 import { IonPage, IonContent, IonHeader, IonToolbar, IonTitle, IonSpinner, toastController } from '@ionic/vue';
 import { VCard, VCardTitle, VCardText, VTextField, VDivider, VBtn, VIcon } from 'vuetify/components';
-import Navbar from '@/components/Navbar.vue';
+import AppNavbar from '@/components/AppNavbar.vue';
 import { useAuth } from '@/composables/useAuth';
 import api from '@/services/api';
 

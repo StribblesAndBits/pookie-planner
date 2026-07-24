@@ -55,7 +55,7 @@ export function describeJulesDay(type: string, comingTime?: string | null, leavi
   return 'Jules Here';
 }
 
-export function buildJulesMarker(type: string, _time?: string | null): JulesMarker {
+export function buildJulesMarker(type: string): JulesMarker {
   if (type === JULES_TYPE_GONE) {
     return { label: 'J', className: 'jules-marker--gone', order: 0 };
   }
